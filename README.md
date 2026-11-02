@@ -19,15 +19,6 @@
 
 ---
 
-> [!NOTE]
-> ### Academic Project Overview
->
-> `CareerPath AI` is an academic capstone project designed to address the career counseling challenges faced by undergraduate students in India. Many students transition through degrees like BCA, B.Tech, or B.Com without clear, objective visibility into realistic starting salaries, legitimate postgraduate avenues (such as NIMCET MCA or CDAC PG-DAC), or the true preparation timelines for competitive exams (CAT, GATE, SSC CGL).
->
-> CareerPath AI pairs a locally hosted Large Language Model (via Ollama) with a curated Retrieval-Augmented Generation (RAG) knowledge base to deliver accurate, grounded counseling in Indian Rupees (INR) with zero external API fees and complete data privacy.
-
----
-
 ## Features
 
 * **Grounded Indian Career Benchmarks**: Integrates factual data from ICAI campus placements, 7th Pay Commission pay scales, NIMCET NIT MCA statistics, and Indian tech hiring tiers (mass service firms, startups, and GCCs).
