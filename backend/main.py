@@ -1,99 +1,233 @@
-
+import os
+from typing import List, Optional, Generator
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from ollama import chat as ollama_chat
+import ollama
+
+from rag import retrieve_career_context, clean_model_output
+
+load_dotenv()
+
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434")
+CONFIGURED_MODEL = os.getenv("OLLAMA_MODEL", "jikepjikep_16HEX/gemma-4-e4b-nightshift-heretic-uncensored-q4:latest")
 
 app = FastAPI(
-    title="Career Guidance Chatbot API",
-    description="AI-powered career guidance system",
-    version="1.0.0"
+    title="CareerPath AI - Indian Career Intelligence API",
+    description="Empathetic, grounded, and verified career guidance for Indian students",
+    version="2.2.0"
 )
 
-# Frontend connection
+# Cross-platform CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Request structure
-class ChatRequest(BaseModel):
-    message: str
+BASE_SYSTEM_PROMPT = (
+    "You are CareerPath AI, an expert, objective, and dedicated career guidance counselor for students in India.\n\n"
+    "MISSION & TONE:\n"
+    "- Your sole purpose is to mentor students on Indian higher education, career options, realistic salaries, entrance exams, and professional roadmaps.\n"
+    "- Deliver practical, realistic, grounded, and clear guidance.\n"
+    "- Always quote compensation in Indian Rupees (INR) using realistic figures (LPA or in-hand/month). Differentiate clearly between mass service firms, product startups, GCCs, and government pay scales.\n\n"
+    "STRICT OUTPUT CONSTRAINTS (MANDATORY):\n"
+    "- Answer ONLY what the user asked. Conclude cleanly and STOP.\n"
+    "- NEVER add cheerleading, praise, flattery, or motivational commentary (DO NOT say 'You have a wonderful foundation', 'Keep asking these insightful questions', 'That shows true dedication', etc.).\n"
+    "- NEVER append unsolicited 'Immediate Next Step' or 'Next Steps' sections unless the user explicitly requested next steps or an action plan.\n"
+    "- NEVER add conversational closing pleasantries, prompts, or follow-up questions (DO NOT say 'What would you like to explore next?', 'Feel free to ask more', 'How can I help you next?', etc.). End immediately after the answer.\n"
+    "- NEVER use LaTeX arrow notation such as $\\rightarrow$ or \\rightarrow. Always write the standard arrow character '→' directly.\n\n"
+    "STRICT DOMAIN GUARDRAILS:\n"
+    "- You MUST remain strictly within the career guidance, education, degree, exam, and career progression narrative.\n"
+    "- If the user asks about anything unrelated to education, college, careers, exams, or professional growth (for example: cooking recipes, creative writing, sports gossip, general coding puzzles without career context, political commentary, or casual off-topic banter), politely refuse in one short sentence:\n"
+    "  \"I am CareerPath AI, dedicated specifically to helping students navigate careers, degrees, entrance exams, and professional pathways in India. I cannot assist with topics outside education and career guidance, but I am ready to help you explore your studies or career goals.\"\n\n"
+    "NO THINKING TAGS & CONCISE STRUCTURE:\n"
+    "- Deliver your answer directly. Do NOT output any internal <think>...</think> tags, chain-of-thought monologue, or reasoning steps. Start immediately with your response.\n"
+    "- When presenting comparisons or benchmarks, use clean markdown tables and bullet points. Ensure every section and table is completed fully."
+)
 
-# Response structure
+class MessageItem(BaseModel):
+    role: str
+    content: str
+
+class ChatRequest(BaseModel):
+    message: Optional[str] = None
+    messages: Optional[List[MessageItem]] = None
+    stream: Optional[bool] = True
+
 class ChatResponse(BaseModel):
     reply: str
+    model: str
+    has_rag: bool = False
 
-# Homepage
+def resolve_active_model(client: ollama.Client) -> str:
+    """
+    Auto-detects the best available model on the host machine.
+    Prefers Gemma, then Qwen, then first installed.
+    """
+    try:
+        available = client.list()
+        names = [m.model for m in available.models]
+        if not names:
+            return CONFIGURED_MODEL
+
+        # 1. Exact match with configured model
+        if CONFIGURED_MODEL in names:
+            return CONFIGURED_MODEL
+
+        # 2. Case-insensitive or partial match
+        for n in names:
+            if CONFIGURED_MODEL.lower() in n.lower() or n.lower() in CONFIGURED_MODEL.lower():
+                return n
+
+        # 3. Prefer Gemma first, then Qwen
+        for n in names:
+            if "gemma" in n.lower():
+                return n
+        for n in names:
+            if "qwen" in n.lower():
+                return n
+
+        return names[0]
+    except Exception:
+        return CONFIGURED_MODEL
+
 @app.get("/")
 def home():
+    client = ollama.Client(host=OLLAMA_HOST)
+    active_model = resolve_active_model(client)
     return {
-        "message": "Career Guidance Chatbot API is running!"
+        "message": "CareerPath AI (India Edition) is running",
+        "model": active_model,
+        "host": OLLAMA_HOST
     }
 
-# Health check
 @app.get("/health")
 def health_check():
+    client = ollama.Client(host=OLLAMA_HOST)
+    active_model = resolve_active_model(client)
     return {
-        "status": "healthy"
+        "status": "healthy",
+        "model": active_model,
+        "host": OLLAMA_HOST,
+        "edition": "India 2025-2026"
     }
 
-# AI Chat endpoint
-@app.post("/chat", response_model=ChatResponse)
+@app.post("/chat")
 def chat_endpoint(request: ChatRequest):
+    # Extract latest user message for RAG retrieval
+    user_query = ""
+    if request.messages and len(request.messages) > 0:
+        for m in reversed(request.messages):
+            if m.role == "user" and m.content:
+                user_query = m.content
+                break
+    elif request.message:
+        user_query = request.message
 
+    if not user_query:
+        raise HTTPException(status_code=400, detail="Either 'message' or 'messages' must be provided.")
+
+    # Retrieve verified Indian career intelligence
+    rag_context = retrieve_career_context(user_query)
+
+    system_content = BASE_SYSTEM_PROMPT
+    if rag_context:
+        system_content += (
+            f"\n\n{rag_context}\n"
+            "MANDATORY KNOWLEDGE INTEGRATION:\n"
+            "- You MUST actively incorporate and cite the verified figures, exam names (e.g. NIMCET, CDAC, CAT, SSC CGL), and CTC benchmarks from the verified data above into your advice."
+        )
+
+    conversation = [{"role": "system", "content": system_content}]
+
+    # Sliding context window: Only the last 4 turns (2 user + 2 assistant messages)
+    if request.messages:
+        recent_messages = request.messages[-4:]
+        for msg in recent_messages:
+            if msg.role in ("user", "assistant") and msg.content:
+                conversation.append({"role": msg.role, "content": msg.content})
+    else:
+        conversation.append({"role": "user", "content": user_query})
+
+    client = ollama.Client(host=OLLAMA_HOST)
+    active_model = resolve_active_model(client)
+
+    # 1. STREAMING MODE (Default for fluid ChatGPT/Claude UI gliding effect)
+    if request.stream:
+        def token_generator() -> Generator[str, None, None]:
+            try:
+                stream = client.chat(
+                    model=active_model,
+                    messages=conversation,
+                    stream=True,
+                    options={
+                        "temperature": 0.2,
+                        "top_p": 0.85,
+                        "num_predict": 3500
+                    }
+                )
+
+                in_think = False
+                for chunk in stream:
+                    content = chunk.message.content
+                    if not content:
+                        continue
+                    if "<think>" in content:
+                        in_think = True
+                        content = content.replace("<think>", "")
+                    if "</think>" in content:
+                        in_think = False
+                        content = content.replace("</think>", "")
+                        continue
+                    if in_think:
+                        continue
+                    if content:
+                        # Clean LaTeX arrow artifacts if emitted by the LLM
+                        content = (
+                            content.replace("$\\rightarrow$", "→")
+                            .replace("\\rightarrow", "→")
+                            .replace("$\\leftarrow$", "←")
+                            .replace("\\leftarrow", "←")
+                        )
+                        yield content
+            except Exception as e:
+                yield f"\n[AI Connection Error: {str(e)}]"
+
+        return StreamingResponse(
+            token_generator(),
+            media_type="text/plain; charset=utf-8",
+            headers={"X-Model-Active": active_model}
+        )
+
+    # 2. NON-STREAMING MODE (Direct JSON response)
     try:
-        response = ollama_chat(
-            model="gemma3:1b",
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a professional AI career counsellor for Indian students. "
-
-"Your goal is to understand each student's education, "
-"interests, skills, strengths and career preferences. "
-
-"Ask one question at a time when you need more information. "
-"Do not assume the student's skills, interests or experience. "
-
-"Give personalised career recommendations based on the "
-"information the student provides. "
-
-"Focus on career opportunities in India. "
-"Always use Indian Rupees (INR) when discussing salaries. "
-"Clearly mention that salary figures are approximate and "
-"depend on location, skills and experience. "
-
-"Explain the qualifications, skills, job responsibilities "
-"and career growth for each recommended career. "
-
-"Consider government and private sector opportunities "
-"when relevant to the student's preferences. "
-
-"Use simple, beginner-friendly language. "
-"Never guarantee jobs, salaries or selection. "
-"Do not invent eligibility requirements or qualifications. "git add .
-git commit -m "Complete AI chatbot integration"
-git push origin main
-                    )
-                },
-                {
-                    "role": "user",
-                    "content": request.message
-                }
-            ]
+        response = client.chat(
+            model=active_model,
+            messages=conversation,
+            stream=False,
+            options={
+                "temperature": 0.2,
+                "top_p": 0.85,
+                "num_predict": 3500
+            }
         )
+        raw_reply = response.message.content
+        cleaned_reply = clean_model_output(raw_reply)
 
-        return {
-            "reply": response.message.content
-        }
-
+        return ChatResponse(
+            reply=cleaned_reply,
+            model=active_model,
+            has_rag=bool(rag_context)
+        )
     except Exception as e:
-        raise HTTPException(
-            status_code=503,
-            detail=f"AI model connection failed: {str(e)}"
-        )
+        raise HTTPException(status_code=503, detail=f"AI model connection failed: {str(e)}")

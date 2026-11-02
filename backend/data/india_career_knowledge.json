@@ -1,0 +1,134 @@
+{
+  "version": "2025-2026",
+  "country": "India",
+  "domains": {
+    "bca_computer_applications": {
+      "keywords": ["bca", "computer applications", "nimcet", "cdac", "mca", "bca salary", "bca career"],
+      "title": "Bachelor of Computer Applications (BCA) Trajectories",
+      "summary": "BCA graduates in India face a strategic choice: direct corporate entry, specialized 6-month diploma (CDAC), or elite post-graduation (NIMCET for NIT MCA).",
+      "paths": [
+        {
+          "name": "Direct Tech Entry (Software / Full-Stack / Data)",
+          "typical_roles": ["Junior Software Engineer", "Frontend Developer (React/Vue)", "Backend Developer (Node/Python/Java)", "Data Analyst", "QA / Automation Engineer"],
+          "salary_fresher_inr": "₹2.5 LPA - ₹6.5 LPA",
+          "market_reality": "Service MNCs (TCS NQT, Infosys, Wipro, Cognizant) hire at ₹3.2 - ₹4.2 LPA. Early-stage product startups or funded Series A firms hire skilled portfolio-backed coders at ₹5 - ₹8 LPA.",
+          "required_skills": ["Solid Data Structures (LeetCode 100+)", "Full-Stack Project (MERN / Next.js / Spring Boot)", "Git / GitHub proof-of-work", "SQL / Database schema design"]
+        },
+        {
+          "name": "NIMCET Entrance -> MCA at National Institutes of Technology (NITs)",
+          "eligibility": "BCA/B.Sc with Mathematics/Statistics as one of the subjects with 60% aggregate (55% for SC/ST).",
+          "top_institutes": ["NIT Trichy", "NIT Surathkal", "NIT Warangal", "MNNIT Allahabad", "NIT Calicut"],
+          "salary_fresher_inr": "Average: ₹8.0 LPA - ₹16.0 LPA; Peak: ₹25.0+ LPA",
+          "why_it_matters": "Bridges academic parity with Tier-1 B.Tech CS grads. Top product tech giants (Amazon, Cisco, Oracle, Morgan Stanley, Goldman Sachs) recruit directly on NIT MCA campuses."
+        },
+        {
+          "name": "CDAC C-CAT Entrance -> PG-DAC (Post Graduate Diploma in Advanced Computing)",
+          "duration": "6 Months Intensive (Offered by MeitY)",
+          "top_centres": ["CDAC ACTS Pune", "Sunbeam Pune", "CDAC Bangalore", "IET Pune"],
+          "salary_fresher_inr": "₹4.5 LPA - ₹8.5 LPA",
+          "why_it_matters": "Fast-track 6-month hands-on curriculum without committing 2 years to a Master's degree. Centralized campus placement drive (CCAT) features 150+ tech recruiters."
+        }
+      ]
+    },
+    "btech_engineering": {
+      "keywords": ["btech", "engineering", "b.tech", "cs", "it", "ece", "software engineer", "sde", "developer", "fresher salary"],
+      "title": "B.Tech Engineering & Tech Sector Landscape (India)",
+      "summary": "B.Tech campus and off-campus placements in India operate across four distinct compensation tiers in 2025/2026.",
+      "tiers": [
+        {
+          "tier": "Tier 1: IT Services (Mass Recruiters)",
+          "ctc_inr": "₹3.5 LPA - ₹5.5 LPA",
+          "recruiters": ["TCS (Ninja/Digital)", "Infosys (SES/Specialist)", "Wipro", "Cognizant GenC", "HCLTech"],
+          "hiring_process": "National Qualifier Tests (NQT), basic aptitude, foundational programming."
+        },
+        {
+          "tier": "Tier 2: Funded Startups & Global Capability Centers (GCCs)",
+          "ctc_inr": "₹8.0 LPA - ₹18.0 LPA",
+          "recruiters": ["JPMC", "Wells Fargo", "Target", "Walmart Global Tech", "Fintech / SaaS Startups"],
+          "hiring_process": "Advanced DSA (Medium/Hard LeetCode), System Design basics, real production projects."
+        },
+        {
+          "tier": "Tier 3: Tier-1 Unicorns & Product MNCs",
+          "ctc_inr": "₹18.0 LPA - ₹40.0+ LPA",
+          "recruiters": ["Google", "Microsoft", "Uber", "Swiggy", "Razorpay", "CRED", "Flipkart"],
+          "hiring_process": "DSA mastery, CS fundamentals (OS, DBMS, Networks), high-concurrency architecture exposure."
+        }
+      ],
+      "gate_pathway": {
+        "name": "GATE Examination (Graduate Aptitude Test in Engineering)",
+        "outcomes": [
+          "M.Tech at IISc / IITs (Post-M.Tech average CTC ₹20 - ₹35 LPA)",
+          "Direct Recruitment to PSUs (IOCL, ONGC, NTPC, BHEL, PowerGrid) with starting in-hand pay ₹65,000 - ₹90,000/month + residential quarters."
+        ]
+      }
+    },
+    "commerce_finance": {
+      "keywords": ["ca", "chartered accountant", "b.com", "bcom", "cfa", "cma", "finance", "banking", "icai"],
+      "title": "Commerce, Chartered Accountancy & Finance Pathways",
+      "summary": "Authoritative compensation and entrance standards across the Indian financial and accounting landscape.",
+      "paths": [
+        {
+          "name": "Chartered Accountancy (ICAI New Scheme)",
+          "stages": ["CA Foundation", "CA Intermediate", "2-year mandatory Articleship", "CA Final"],
+          "fresher_ctc_inr": "Average: ₹12.5 LPA - ₹13.0 LPA (ICAI Campus Placements 2025/2026)",
+          "market_spread": "Standard offers: ₹8 - ₹12 LPA; Big 4 (Deloitte, PwC, EY, KPMG): ₹9 - ₹16 LPA; AIR / Rankers & Corporates: ₹18 - ₹30+ LPA."
+        },
+        {
+          "name": "MBA via CAT / XAT",
+          "target_colleges": ["IIM Ahmedabad", "IIM Bangalore", "IIM Calcutta", "XLRI Jamshedpur", "FMS Delhi"],
+          "ctc_inr": "Top IIMs (BLACKI): Average ₹32 - ₹36 LPA (Consulting / Investment Banking / Product Management); Tier-2 B-Schools: ₹12 - ₹18 LPA.",
+          "investment": "Fees ₹22 - ₹27 Lakhs at top IIMs; FMS Delhi remains exceptional value at ~₹2 Lakhs total fees."
+        },
+        {
+          "name": "CFA (Chartered Financial Analyst)",
+          "relevance": "Gold standard for Equity Research, Portfolio Management, and Private Equity in Mumbai, Bangalore, and Gurgaon."
+        }
+      ]
+    },
+    "government_civil_services": {
+      "keywords": ["ssc cgl", "bank po", "upsc", "ias", "govt job", "sbi po", "ibps", "civil services"],
+      "title": "Central Government & Public Sector Banking (India)",
+      "summary": "7th Central Pay Commission standards, allowances, and recruitment procedures for permanent career stability.",
+      "options": [
+        {
+          "name": "SSC CGL (Combined Graduate Level Exam)",
+          "posts": ["Income Tax Inspector", "Central Excise Inspector", "Assistant Section Officer (ASO in MEA/CSS)", "Assistant Audit Officer (AAO)"],
+          "pay_scales": {
+            "Pay Level 7 (ASO/Inspector)": "Basic Pay ₹44,900; Gross with DA+HRA in Class X City (Delhi/Mumbai): ~₹78,000; Monthly In-Hand: ~₹62,000 - ₹67,000",
+            "Pay Level 8 (AAO)": "Basic Pay ₹47,600; Monthly In-Hand: ~₹68,000 - ₹75,000",
+            "Pay Level 4/5 (Auditor/Tax Assistant)": "Monthly In-Hand: ~₹33,000 - ₹42,000"
+          },
+          "perks": "Permanent job security, CGHS central medical coverage, regular DA indexation twice annually, predictable promotions."
+        },
+        {
+          "name": "Bank PO (SBI PO & IBPS PO)",
+          "starting_in_hand": "₹52,000 - ₹62,000/month (post 12th Bipartite Settlement increments)",
+          "annual_ctc_equivalent": "₹8.5 LPA - ₹10.5 LPA including leased accommodation benefits.",
+          "culture": "Fast-paced retail branch banking, measurable credit targets, accelerated promotional pipeline to AGM/DGM within 12-15 years."
+        },
+        {
+          "name": "UPSC Civil Services (IAS, IPS, IFS, IRS)",
+          "cadre": "Group 'A' Central Services with unmatched administrative policy impact, district leadership, and constitutional tenure."
+        }
+      ]
+    },
+    "design_creative": {
+      "keywords": ["ui/ux", "product designer", "design", "nid", "ceed", "uceed", "graphic design"],
+      "title": "Product Design & Creative Careers in India",
+      "summary": "India's burgeoning tech and consumer ecosystem has made UI/UX and product design high-paying, portfolio-driven careers.",
+      "paths": [
+        {
+          "name": "UI/UX & Product Design (Direct Portfolio Path)",
+          "salary_fresher_inr": "₹4.5 LPA - ₹10.0 LPA",
+          "core_requirement": "Dribbble/Behance/Framer portfolio showing 2-3 end-to-end case studies solving actual Indian consumer/B2B problems with Figma, user research, and interactive prototypes.",
+          "growth": "3-5 years experience scales to ₹18 - ₹30 LPA Senior Product Designer roles."
+        },
+        {
+          "name": "NID (National Institute of Design) / CEED (IIT Bombay IDC)",
+          "degree": "M.Des / B.Des",
+          "salary_fresher_inr": "₹8.0 LPA - ₹18.0 LPA"
+        }
+      ]
+    }
+  }
+}

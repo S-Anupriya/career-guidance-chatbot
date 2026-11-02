@@ -1,6 +1,26 @@
+# Dependencies
 node_modules/
+venv/
 .venv/
 __pycache__/
+*.pyc
+
+# Builds
+dist/
+build/
+
+# Environment variables
 .env
+.env.*
+!.env.example
+
+# Database & Logs
 *.db
+*.sqlite3
+*.log
+
+# IDE & OS
+.vscode/
+.idea/
 .DS_Store
+Thumbs.db
