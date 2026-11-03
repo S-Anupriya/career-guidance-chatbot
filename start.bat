@@ -43,13 +43,25 @@ echo.
 echo [2/4] Checking Python environment...
 if not exist "%BACKEND_DIR%\.venv\Scripts\uvicorn.exe" (
     echo Setting up Python virtual environment in backend\.venv...
+    set "PYTHON_CMD="
     where python >nul 2>&1
-    if %ERRORLEVEL% NEQ 0 (
+    if %ERRORLEVEL% EQU 0 (
+        set "PYTHON_CMD=python"
+    ) else (
+        where py >nul 2>&1
+        if %ERRORLEVEL% EQU 0 (
+            set "PYTHON_CMD=py"
+        )
+    )
+
+    if not defined PYTHON_CMD (
         echo [ERROR] Python is not installed or not in PATH. Please install Python 3.10+ from python.org.
         pause
         exit /b 1
     )
-    python -m venv "%BACKEND_DIR%\.venv"
+
+    !PYTHON_CMD! -m venv "%BACKEND_DIR%\.venv"
+    "%BACKEND_DIR%\.venv\Scripts\pip.exe" install --upgrade pip >nul 2>&1
     "%BACKEND_DIR%\.venv\Scripts\pip.exe" install -r "%BACKEND_DIR%\requirements.txt"
 ) else (
     "%BACKEND_DIR%\.venv\Scripts\pip.exe" install -r "%BACKEND_DIR%\requirements.txt" >nul 2>&1
@@ -76,8 +88,14 @@ echo [OK] Frontend packages ready.
 :: 4. Launch Backend and Frontend
 echo.
 echo [4/4] Launching CareerPath AI services...
-echo Starting FastAPI backend on http://127.0.0.1:8000...
-start "CareerPath AI - Backend" /MIN cmd /c "cd /d "%BACKEND_DIR%" && "%BACKEND_DIR%\.venv\Scripts\uvicorn.exe" main:app --host 127.0.0.1 --port 8000"
+
+curl -s --connect-timeout 1 http://127.0.0.1:8000/health >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+    echo [OK] FastAPI backend is already running on http://127.0.0.1:8000.
+) else (
+    echo Starting FastAPI backend on http://127.0.0.1:8000...
+    start "CareerPath AI - Backend" /MIN cmd /c "cd /d "%BACKEND_DIR%" && "%BACKEND_DIR%\.venv\Scripts\uvicorn.exe" main:app --host 127.0.0.1 --port 8000"
+)
 
 echo Starting React frontend on http://127.0.0.1:5173...
 start "CareerPath AI - Frontend" cmd /c "cd /d "%FRONTEND_DIR%" && npm run dev -- --host 127.0.0.1 --port 5173"
@@ -92,6 +110,13 @@ start http://localhost:5173
 
 echo.
 echo Keep this command prompt open while using the app.
-echo Close this window to stop.
+echo Press any key to stop all CareerPath AI services...
 echo.
-pause
+pause >nul
+
+echo.
+echo Stopping CareerPath AI services...
+taskkill /F /FI "WINDOWTITLE eq CareerPath AI - Backend*" >nul 2>&1
+taskkill /F /FI "WINDOWTITLE eq CareerPath AI - Frontend*" >nul 2>&1
+echo [OK] All services stopped cleanly.
+timeout /t 2 /nobreak >nul

@@ -84,24 +84,28 @@ else
     UVICORN_BIN="uvicorn"
 fi
 
-echo "➜ Launching FastAPI backend on http://127.0.0.1:8000..."
-"$UVICORN_BIN" main:app --host 127.0.0.1 --port 8000 --app-dir "$BACKEND_DIR" >/dev/null 2>&1 &
-PIDS+=("$!")
-
-# Verify backend health
-BACKEND_HEALTHY=0
-for i in {1..15}; do
-    if curl -s --connect-timeout 1 http://127.0.0.1:8000/health >/dev/null 2>&1; then
-        BACKEND_HEALTHY=1
-        break
-    fi
-    sleep 0.5
-done
-
-if [ "$BACKEND_HEALTHY" -eq 1 ]; then
-    echo "✓ FastAPI backend ready."
+if curl -s --connect-timeout 1 http://127.0.0.1:8000/health >/dev/null 2>&1; then
+    echo "✓ FastAPI backend already running."
 else
-    echo "⚠ FastAPI backend starting up. Check http://127.0.0.1:8000/health"
+    echo "➜ Launching FastAPI backend on http://127.0.0.1:8000..."
+    "$UVICORN_BIN" main:app --host 127.0.0.1 --port 8000 --app-dir "$BACKEND_DIR" >/dev/null 2>&1 &
+    PIDS+=("$!")
+
+    # Verify backend health
+    BACKEND_HEALTHY=0
+    for i in {1..15}; do
+        if curl -s --connect-timeout 1 http://127.0.0.1:8000/health >/dev/null 2>&1; then
+            BACKEND_HEALTHY=1
+            break
+        fi
+        sleep 0.5
+    done
+
+    if [ "$BACKEND_HEALTHY" -eq 1 ]; then
+        echo "✓ FastAPI backend ready."
+    else
+        echo "⚠ FastAPI backend starting up. Check http://127.0.0.1:8000/health"
+    fi
 fi
 
 # 3. Check and Setup Frontend Dependencies
