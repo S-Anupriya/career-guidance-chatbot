@@ -26,9 +26,14 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
         "http://localhost:3000",
-        "http://127.0.0.1:3000"
+        "http://127.0.0.1:3000",
+        "http://localhost:4173",
+        "http://127.0.0.1:4173"
     ],
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -69,37 +74,44 @@ class ChatResponse(BaseModel):
     model: str
     has_rag: bool = False
 
+def get_installed_models(client: ollama.Client) -> List[str]:
+    try:
+        available = client.list()
+        return [m.model for m in available.models if m.model]
+    except Exception:
+        return []
+
 def resolve_active_model(client: ollama.Client) -> str:
     """
     Auto-detects the best available model on the host machine.
-    Prefers Gemma, then Qwen, then first installed.
+    Prefers Gemma, then Qwen, then Llama, then first installed.
+    If no models are installed in Ollama, returns empty string.
     """
-    try:
-        available = client.list()
-        names = [m.model for m in available.models]
-        if not names:
-            return CONFIGURED_MODEL
+    installed = get_installed_models(client)
+    if not installed:
+        return ""
 
-        # 1. Exact match with configured model
-        if CONFIGURED_MODEL in names:
-            return CONFIGURED_MODEL
-
-        # 2. Case-insensitive or partial match
-        for n in names:
-            if CONFIGURED_MODEL.lower() in n.lower() or n.lower() in CONFIGURED_MODEL.lower():
-                return n
-
-        # 3. Prefer Gemma first, then Qwen
-        for n in names:
-            if "gemma" in n.lower():
-                return n
-        for n in names:
-            if "qwen" in n.lower():
-                return n
-
-        return names[0]
-    except Exception:
+    # 1. Exact match with configured model
+    if CONFIGURED_MODEL in installed:
         return CONFIGURED_MODEL
+
+    # 2. Case-insensitive or partial match
+    for n in installed:
+        if CONFIGURED_MODEL.lower() in n.lower() or n.lower() in CONFIGURED_MODEL.lower():
+            return n
+
+    # 3. Prefer Gemma first, then Qwen, then Llama
+    for n in installed:
+        if "gemma" in n.lower():
+            return n
+    for n in installed:
+        if "qwen" in n.lower():
+            return n
+    for n in installed:
+        if "llama" in n.lower():
+            return n
+
+    return installed[0]
 
 @app.get("/")
 def home():
@@ -107,7 +119,7 @@ def home():
     active_model = resolve_active_model(client)
     return {
         "message": "CareerPath AI (India Edition) is running",
-        "model": active_model,
+        "model": active_model or "No model found (run: ollama pull gemma:2b)",
         "host": OLLAMA_HOST
     }
 
@@ -117,7 +129,7 @@ def health_check():
     active_model = resolve_active_model(client)
     return {
         "status": "healthy",
-        "model": active_model,
+        "model": active_model or "No model found",
         "host": OLLAMA_HOST,
         "edition": "India 2025-2026"
     }
@@ -162,6 +174,25 @@ def chat_endpoint(request: ChatRequest):
     client = ollama.Client(host=OLLAMA_HOST)
     active_model = resolve_active_model(client)
 
+    # If no model is installed in Ollama, guide the user directly
+    if not active_model:
+        guidance = (
+            "⚠️ **No AI Model Detected in Ollama**\n\n"
+            "Ollama is running, but no models are downloaded on this computer yet.\n\n"
+            "To activate CareerPath AI, open Terminal (macOS/Linux) or Command Prompt (Windows) and run:\n\n"
+            "```bash\n"
+            "ollama pull gemma:2b\n"
+            "```\n\n"
+            "*(or `ollama pull qwen2.5:3b`)*. Once downloaded, refresh this page and your assistant will respond instantly!"
+        )
+        if request.stream:
+            return StreamingResponse(
+                iter([guidance]),
+                media_type="text/plain; charset=utf-8",
+                headers={"X-Model-Active": "No Model Found"}
+            )
+        return ChatResponse(reply=guidance, model="None", has_rag=False)
+
     # 1. STREAMING MODE (Default for fluid ChatGPT/Claude UI gliding effect)
     if request.stream:
         def token_generator() -> Generator[str, None, None]:
@@ -201,7 +232,21 @@ def chat_endpoint(request: ChatRequest):
                         )
                         yield content
             except Exception as e:
-                yield f"\n[AI Connection Error: {str(e)}]"
+                err_str = str(e)
+                if "Failed to connect" in err_str or "Connection refused" in err_str:
+                    yield (
+                        "\n\n⚠️ **Ollama Connection Failed**\n\n"
+                        "Could not connect to Ollama at `http://127.0.0.1:11434`.\n\n"
+                        "Please make sure Ollama is running. Open the Ollama app or run `ollama serve` in your terminal."
+                    )
+                elif "not found" in err_str:
+                    yield (
+                        f"\n\n⚠️ **Model Not Found in Ollama**\n\n"
+                        f"Ollama could not find the active model (`{active_model}`).\n\n"
+                        f"Run `ollama pull {active_model}` or `ollama pull gemma:2b` in terminal, then try again."
+                    )
+                else:
+                    yield f"\n[AI Connection Error: {err_str}]"
 
         return StreamingResponse(
             token_generator(),

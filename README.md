@@ -84,80 +84,30 @@ The system is organized into a modular decoupled architecture:
 
 ## Quick Start
 
-### Automated Launch (macOS & Linux)
+### 1. macOS & Linux (Automated)
 
-Clone the repository and run the startup script:
+Open Terminal in the project root and run:
 
 ```bash
-git clone https://github.com/S-Anupriya/career-guidance-chatbot.git
-cd career-guidance-chatbot
 chmod +x start.sh
 ./start.sh
 ```
 
-The script will automatically:
-1. Verify if Ollama is running (and start it in the background if needed).
-2. Detect the active local model.
-3. Activate the backend virtual environment, install dependencies, and launch FastAPI on port 8000.
-4. Install frontend dependencies and launch the Vite dev server on port 5173.
-5. Provide clean teardown of all subprocesses upon pressing `Ctrl+C`.
+The script will automatically check Ollama, pull a model if missing, set up Python dependencies, install frontend packages, and launch both servers.
 
 Access the web interface at: **http://localhost:5173**
 
 ---
 
-## Manual Installation
+### 2. Windows (Automated)
 
-If you prefer running components separately:
+Open Command Prompt in the project root or simply **double-click `start.bat`**:
 
-### Prerequisites
-
-* Python 3.10 or higher
-* Node.js 18 or higher with `npm`
-* Ollama installed ([ollama.com/download](https://ollama.com/download))
-
-### Step 1: Model Setup (Ollama)
-
-Ensure Ollama is running and pull your preferred lightweight model:
-
-```bash
-# Recommended for laptops:
-ollama pull gemma:2b
-# or
-ollama pull qwen2.5:3b
+```cmd
+start.bat
 ```
 
-### Step 2: Backend Setup
-
-```bash
-cd backend
-
-# Create virtual environment
-python3 -m venv .venv
-source .venv/bin/activate       # On Windows: .venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Start FastAPI server
-uvicorn main:app --reload --host 127.0.0.1 --port 8000
-```
-
-Verify backend health at: `http://127.0.0.1:8000/health`
-
-### Step 3: Frontend Setup
-
-```bash
-cd frontend
-
-# Install packages
-npm install
-
-# Start development server
-npm run dev
-```
-
-Open your browser to `http://localhost:5173`.
+The batch script will verify Ollama, set up Python and Node dependencies automatically, and open `http://localhost:5173` in your default browser.
 
 ---
 
@@ -166,20 +116,38 @@ Open your browser to `http://localhost:5173`.
 If running on Apple Silicon (M1/M2/M3/M4) or Intel Mac:
 
 1. **Install Ollama**:
-   Download the macOS application from [ollama.com](https://ollama.com). Open it from your Applications folder. You will see an Ollama icon in the top macOS menu bar.
+   Download and install the macOS application from [ollama.com/download](https://ollama.com/download). Launch Ollama from your Applications folder (the Ollama icon appears in the top menu bar).
 
-2. **Pull a Model**:
-   Open Terminal and execute:
+2. **Download an AI Model**:
+   Open Terminal and run:
    ```bash
    ollama pull gemma:2b
    ```
+   *(or `ollama pull qwen2.5:3b`)*
 
 3. **Start the Application**:
    Navigate to the project folder and run:
    ```bash
    ./start.sh
    ```
-   The application will detect the model and launch the web interface automatically.
+
+---
+
+## Windows Setup Guide
+
+1. **Prerequisites**:
+   * Install Python 3.10+ from [python.org](https://www.python.org/downloads/) *(make sure to check "Add Python to PATH" during installation)*.
+   * Install Node.js 18+ from [nodejs.org](https://nodejs.org/).
+   * Install Ollama for Windows from [ollama.com/download](https://ollama.com/download).
+
+2. **Download an AI Model**:
+   Open Command Prompt and run:
+   ```cmd
+   ollama pull gemma:2b
+   ```
+
+3. **Start the Application**:
+   Double-click `start.bat` in the project root folder.
 
 ---
 
@@ -217,7 +185,8 @@ career-guidance-chatbot/
 │   ├── package.json                     # Frontend dependencies
 │   └── vite.config.ts                   # Vite configuration
 ├── assets/                              # Screenshots and documentation media
-├── start.sh                             # Cross-platform runner script
+├── start.sh                             # macOS and Linux launcher script
+├── start.bat                            # Windows double-click launcher script
 ├── .gitignore                           # Git exclusion rules
 └── README.md                            # Project documentation
 ```

@@ -8,11 +8,13 @@ type Message = {
 };
 
 function formatModelName(model: string): string {
-  if (!model) return "Gemma 4 · Local";
+  if (!model || model.toLowerCase().includes("no model") || model === "None") {
+    return "No Model Installed";
+  }
   const lower = model.toLowerCase();
-  if (lower.includes("gemma")) return "Gemma 4 · Local";
-  if (lower.includes("qwen")) return "Qwen 3.5 · Local";
-  if (lower.includes("llama")) return "Llama 3 · Local";
+  if (lower.includes("gemma")) return "Gemma · Local";
+  if (lower.includes("qwen")) return "Qwen · Local";
+  if (lower.includes("llama")) return "Llama · Local";
   return model.split("/").pop()?.split(":")[0] || model;
 }
 
@@ -21,7 +23,7 @@ function App() {
   const [question, setQuestion] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [modelName, setModelName] = useState("Gemma 4 · Local");
+  const [modelName, setModelName] = useState("AI Model · Local");
   const [backendStatus, setBackendStatus] = useState<"connected" | "offline">("connected");
   const [activeNav, setActiveNav] = useState<"chat" | "salaries" | "exams">("chat");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
