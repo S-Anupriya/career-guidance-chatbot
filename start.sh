@@ -75,8 +75,10 @@ fi
 
 if [ -f "$BACKEND_DIR/.venv/bin/uvicorn" ]; then
     UVICORN_BIN="$BACKEND_DIR/.venv/bin/uvicorn"
+    "$BACKEND_DIR/.venv/bin/pip" install -r "$BACKEND_DIR/requirements.txt" >/dev/null 2>&1 || true
 elif [ -f "$BACKEND_DIR/venv/bin/uvicorn" ]; then
     UVICORN_BIN="$BACKEND_DIR/venv/bin/uvicorn"
+    "$BACKEND_DIR/venv/bin/pip" install -r "$BACKEND_DIR/requirements.txt" >/dev/null 2>&1 || true
 else
     UVICORN_BIN="uvicorn"
 fi

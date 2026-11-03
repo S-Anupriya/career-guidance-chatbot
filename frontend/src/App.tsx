@@ -1,12 +1,11 @@
-
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import "./App.css";
 import { MarkdownMessage } from "./MarkdownMessage";
 import { AuthScreen } from "./AuthScreen";
 import { StudentDashboard } from "./StudentDashboard";
 import { StudentProfile } from "./StudentProfile";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8002";
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 type Student = {
   id: number;
@@ -34,6 +33,15 @@ type Message = {
   content: string;
 };
 
+type Conversation = {
+  id: number;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+  last_message?: string | null;
+};
+
 type Navigation = "dashboard" | "chat" | "salaries" | "exams" | "profile";
 
 function formatModelName(model: string): string {
@@ -54,6 +62,8 @@ function App() {
   const [student, setStudent] = useState<Student | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
   const [question, setQuestion] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -62,6 +72,27 @@ function App() {
   const [activeNav, setActiveNav] = useState<Navigation>("dashboard");
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Fetch previous conversations for logged in student
+  const fetchConversations = useCallback(async () => {
+    const token = sessionStorage.getItem("future_forge_token");
+    if (!token) return;
+
+    try {
+      const response = await fetch(`${API_URL}/conversations`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setConversations(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch conversations:", err);
+    }
+  }, []);
 
   // Validate saved login
   useEffect(() => {
@@ -97,9 +128,17 @@ function App() {
     validateSavedLogin();
   }, []);
 
+  // Load conversations when student is active
+  useEffect(() => {
+    if (student) {
+      fetchConversations();
+    }
+  }, [student, fetchConversations]);
+
   function handleAuthenticated(token: string, loggedInStudent: Student) {
     sessionStorage.setItem("future_forge_token", token);
     setStudent(loggedInStudent);
+    setCurrentConversationId(null);
     setMessages([]);
     setActiveNav("dashboard");
   }
@@ -107,9 +146,66 @@ function App() {
   function logout() {
     sessionStorage.removeItem("future_forge_token");
     setStudent(null);
+    setConversations([]);
+    setCurrentConversationId(null);
     setMessages([]);
     setQuestion("");
     setActiveNav("dashboard");
+  }
+
+  // Load an existing conversation
+  async function loadConversation(convId: number) {
+    if (isLoading || isStreaming) return;
+    const token = sessionStorage.getItem("future_forge_token");
+    if (!token) return;
+
+    try {
+      const response = await fetch(`${API_URL}/conversations/${convId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setMessages(
+          data.messages.map((m: { role: "user" | "assistant"; content: string }) => ({
+            role: m.role,
+            content: m.content
+          }))
+        );
+        setCurrentConversationId(convId);
+        setActiveNav("chat");
+      }
+    } catch (err) {
+      console.error("Failed to load conversation:", err);
+    }
+  }
+
+  // Delete a conversation
+  async function deleteConversation(e: React.MouseEvent, convId: number) {
+    e.stopPropagation();
+    const token = sessionStorage.getItem("future_forge_token");
+    if (!token) return;
+
+    try {
+      const response = await fetch(`${API_URL}/conversations/${convId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        setConversations((prev) => prev.filter((c) => c.id !== convId));
+        if (currentConversationId === convId) {
+          setCurrentConversationId(null);
+          setMessages([]);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to delete conversation:", err);
+    }
   }
 
   // Career suggestions
@@ -185,6 +281,7 @@ function App() {
         },
         body: JSON.stringify({
           messages: conversationToSend,
+          conversation_id: currentConversationId,
           stream: true
         })
       });
@@ -196,13 +293,19 @@ function App() {
       setBackendStatus("connected");
 
       const modelHeader = response.headers.get("X-Model-Active");
-
       if (modelHeader) {
         setModelName(formatModelName(modelHeader));
       }
 
-      const reader = response.body?.getReader();
+      const convIdHeader = response.headers.get("X-Conversation-Id");
+      if (convIdHeader) {
+        const parsed = Number(convIdHeader);
+        if (!isNaN(parsed) && parsed > 0) {
+          setCurrentConversationId(parsed);
+        }
+      }
 
+      const reader = response.body?.getReader();
       if (!reader) {
         throw new Error("Response body is not readable");
       }
@@ -220,14 +323,12 @@ function App() {
 
       while (true) {
         const { done, value } = await reader.read();
-
         if (done) break;
 
         accumulated += decoder.decode(value, { stream: true });
 
         setMessages((prev) => {
           const updated = [...prev];
-
           if (
             updated.length > 0 &&
             updated[updated.length - 1].role === "assistant"
@@ -237,7 +338,6 @@ function App() {
               content: accumulated
             };
           }
-
           return updated;
         });
       }
@@ -247,7 +347,6 @@ function App() {
       if (accumulated) {
         setMessages((prev) => {
           const updated = [...prev];
-
           if (
             updated.length > 0 &&
             updated[updated.length - 1].role === "assistant"
@@ -257,7 +356,6 @@ function App() {
               content: accumulated
             };
           }
-
           return updated;
         });
       }
@@ -276,13 +374,14 @@ function App() {
     } finally {
       setIsLoading(false);
       setIsStreaming(false);
+      // Refresh previous conversations list
+      fetchConversations();
     }
   }
 
   // Send a chat message
   async function sendMessage(value = question) {
     const messageToSend = value.trim();
-
     if (!messageToSend || isLoading || isStreaming) return;
 
     const newMessages: Message[] = [
@@ -300,6 +399,9 @@ function App() {
   async function startFreshConversation(prompt: string) {
     if (isLoading || isStreaming) return;
 
+    setCurrentConversationId(null);
+    setActiveNav("chat");
+
     const freshMessages: Message[] = [
       { role: "user", content: prompt }
     ];
@@ -313,6 +415,7 @@ function App() {
   function newChat() {
     if (isLoading || isStreaming) return;
 
+    setCurrentConversationId(null);
     setMessages([]);
     setQuestion("");
     setActiveNav("chat");
@@ -335,6 +438,7 @@ function App() {
         "Give me a roadmap and preparation guide for top competitive entrance exams in India like NIMCET, GATE, CAT, and SSC CGL."
       );
     } else {
+      setCurrentConversationId(null);
       setMessages([]);
       setQuestion("");
     }
@@ -384,7 +488,7 @@ function App() {
   return (
     <div className="app-container">
       <aside className="sidebar">
-        <div className="brand" onClick={() => handleNavClick("chat")}>
+        <div className="brand" onClick={() => handleNavClick("dashboard")} style={{ cursor: "pointer" }}>
           <div className="brand-badge">✦</div>
           <div>
             <h2>CareerPath</h2>
@@ -413,7 +517,7 @@ function App() {
           </button>
 
           <button
-            className={`nav-item ${activeNav === "chat" ? "active" : ""}`}
+            className={`nav-item ${activeNav === "chat" && currentConversationId === null ? "active" : ""}`}
             onClick={() => handleNavClick("chat")}
             disabled={isLoading || isStreaming}
           >
@@ -447,6 +551,42 @@ function App() {
             <span className="nav-bullet">◉</span>
             <span className="nav-label">My Profile</span>
           </button>
+        </div>
+
+        <div className="sidebar-section conversations-history">
+          <div className="history-header">
+            <span className="section-title">CHATS ({conversations.length})</span>
+          </div>
+
+          <div className="conversations-scroll">
+            {conversations.length === 0 ? (
+              <p className="empty-history-text">No saved conversations yet.</p>
+            ) : (
+              conversations.map((c) => (
+                <button
+                  key={c.id}
+                  className={`conversation-item ${
+                    activeNav === "chat" && currentConversationId === c.id ? "active" : ""
+                  }`}
+                  onClick={() => loadConversation(c.id)}
+                  disabled={isLoading || isStreaming}
+                  title={c.title}
+                >
+                  <span className="conv-icon">💬</span>
+                  <span className="conv-title">{c.title}</span>
+                  <span
+                    className="conv-delete-btn"
+                    onClick={(e) => deleteConversation(e, c.id)}
+                    title="Delete conversation"
+                    role="button"
+                    tabIndex={0}
+                  >
+                    ×
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
         </div>
 
         <div className="sidebar-bottom">

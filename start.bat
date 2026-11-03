@@ -51,6 +51,8 @@ if not exist "%BACKEND_DIR%\.venv\Scripts\uvicorn.exe" (
     )
     python -m venv "%BACKEND_DIR%\.venv"
     "%BACKEND_DIR%\.venv\Scripts\pip.exe" install -r "%BACKEND_DIR%\requirements.txt"
+) else (
+    "%BACKEND_DIR%\.venv\Scripts\pip.exe" install -r "%BACKEND_DIR%\requirements.txt" >nul 2>&1
 )
 echo [OK] Backend environment ready.
 
