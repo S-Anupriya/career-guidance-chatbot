@@ -1,6 +1,19 @@
 import { useState, useEffect, useRef } from "react";
 import "./App.css";
 import { MarkdownMessage } from "./MarkdownMessage";
+import { AuthScreen } from "./AuthScreen";
+import { StudentDashboard } from "./StudentDashboard";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8002";
+
+type Student = {
+  id: number;
+  name: string;
+  email: string;
+  course?: string | null;
+  institution?: string | null;
+  graduation_year?: number | null;
+};
 
 type Message = {
   role: "user" | "assistant";
@@ -19,14 +32,63 @@ function formatModelName(model: string): string {
 }
 
 function App() {
+  const [student, setStudent] = useState<Student | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [question, setQuestion] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [modelName, setModelName] = useState("AI Model · Local");
   const [backendStatus, setBackendStatus] = useState<"connected" | "offline">("connected");
-  const [activeNav, setActiveNav] = useState<"chat" | "salaries" | "exams">("chat");
+  const [activeNav, setActiveNav] = useState<"dashboard" | "chat" | "salaries" | "exams">("dashboard");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    async function validateSavedLogin() {
+      const token = sessionStorage.getItem("future_forge_token");
+
+      if (!token) {
+        setAuthChecked(true);
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_URL}/auth/me`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) {
+          sessionStorage.removeItem("future_forge_token");
+          return;
+        }
+
+        const data = await response.json();
+        setStudent(data.student);
+      } catch {
+        sessionStorage.removeItem("future_forge_token");
+      } finally {
+        setAuthChecked(true);
+      }
+    }
+
+    validateSavedLogin();
+  }, []);
+
+  function handleAuthenticated(token: string, loggedInStudent: Student) {
+    sessionStorage.setItem("future_forge_token", token);
+    setStudent(loggedInStudent);
+    setMessages([]);
+  }
+
+  function logout() {
+    sessionStorage.removeItem("future_forge_token");
+    setStudent(null);
+    setMessages([]);
+    setQuestion("");
+    setActiveNav("chat");
+  }
 
   const suggestions = [
     {
@@ -58,7 +120,7 @@ function App() {
   useEffect(() => {
     async function checkHealth() {
       try {
-        const response = await fetch("http://127.0.0.1:8000/health");
+        const response = await fetch(`${API_URL}/health`);
         if (response.ok) {
           const data = await response.json();
           setBackendStatus("connected");
@@ -86,10 +148,13 @@ function App() {
     setIsStreaming(false);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/chat", {
+      const response = await fetch(`${API_URL}/chat`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          ...(sessionStorage.getItem("future_forge_token")
+            ? { Authorization: `Bearer ${sessionStorage.getItem("future_forge_token")}` }
+            : {})
         },
         body: JSON.stringify({
           messages: conversationToSend,
@@ -195,9 +260,11 @@ function App() {
     setActiveNav("chat");
   }
 
-  function handleNavClick(target: "chat" | "salaries" | "exams") {
+  function handleNavClick(target: "dashboard" | "chat" | "salaries" | "exams") {
     if (isLoading || isStreaming) return;
     setActiveNav(target);
+
+    if (target === "dashboard") return;
 
     if (target === "salaries") {
       startFreshConversation("What are the current starting salary benchmarks for freshers in India across Software, Data Science, Finance, and Government jobs?");
@@ -206,6 +273,20 @@ function App() {
     } else {
       newChat();
     }
+  }
+
+  if (!authChecked) {
+    return (
+      <main className="auth-page">
+        <section className="auth-card">
+          <p>Loading Future Forge...</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (!student) {
+    return <AuthScreen onAuthenticated={handleAuthenticated} />;
   }
 
   return (
@@ -227,6 +308,15 @@ function App() {
 
         <div className="sidebar-section">
           <span className="section-title">QUICK EXPLORE</span>
+
+          <button
+            className={`nav-item ${activeNav === "dashboard" ? "active" : ""}`}
+            onClick={() => handleNavClick("dashboard")}
+            disabled={isLoading || isStreaming}
+          >
+            <span className="nav-bullet">⌂</span>
+            <span className="nav-label">Dashboard</span>
+          </button>
 
           <button
             className={`nav-item ${activeNav === "chat" ? "active" : ""}`}
@@ -262,11 +352,16 @@ function App() {
             <span>India Edition (2025/26)</span>
           </div>
           <div className="user-profile">
-            <div className="user-avatar">S</div>
-            <div>
-              <p className="user-name">Student</p>
+            <div className="user-avatar">
+              {student.name.charAt(0).toUpperCase()}
+            </div>
+            <div className="user-details">
+              <p className="user-name">{student.name}</p>
               <p className="user-sub">Career Explorer</p>
             </div>
+            <button className="logout-btn" onClick={logout}>
+              Log out
+            </button>
           </div>
         </div>
 
@@ -287,6 +382,16 @@ function App() {
           </div>
         </header>
 
+        {activeNav === "dashboard" ? (
+          <StudentDashboard
+            student={student}
+            onOpenChat={(prompt) => {
+              setActiveNav("chat");
+              startFreshConversation(prompt);
+            }}
+          />
+        ) : (
+        <>
         <section className={`chat-viewport ${messages.length === 0 ? "empty" : ""}`}>
 
           {messages.length === 0 ? (
@@ -421,6 +526,8 @@ function App() {
           </p>
 
         </footer>
+        </>
+        )}
 
       </main>
 
