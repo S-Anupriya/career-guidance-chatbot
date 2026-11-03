@@ -1,15 +1,20 @@
+
 import os
 import re
+import json
 import sqlite3
+
 from datetime import datetime, timedelta, timezone
 
 import jwt
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from pwdlib import PasswordHash
 
 from database import get_connection
+
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -20,32 +25,54 @@ JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 
+# Get JWT secret key
 def get_jwt_secret():
     secret = os.getenv("JWT_SECRET_KEY")
+
     if not secret:
         raise RuntimeError(
             "JWT_SECRET_KEY is missing. Add it to backend/.env."
         )
+
     return secret
 
 
+# Registration model
 class RegisterRequest(BaseModel):
     name: str = Field(min_length=2, max_length=80)
     email: str = Field(min_length=5, max_length=254)
     password: str = Field(min_length=8, max_length=128)
 
 
+# Login model
 class LoginRequest(BaseModel):
     email: str = Field(min_length=5, max_length=254)
     password: str = Field(min_length=1, max_length=128)
 
 
+# Profile update model
+class ProfileUpdateRequest(BaseModel):
+    course: str = Field(default="", max_length=100)
+    institution: str = Field(default="", max_length=150)
+    graduation_year: int | None = Field(
+        default=None, ge=2000, le=2100
+    )
+    interests: list[str] = Field(default_factory=list, max_length=20)
+    skills: list[str] = Field(default_factory=list, max_length=30)
+    preferred_domains: list[str] = Field(
+        default_factory=list, max_length=15
+    )
+
+
+# Validate email
 def validate_email(email: str) -> bool:
     return bool(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email))
 
 
+# Register student
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 def register_student(request: RegisterRequest):
+
     name = request.name.strip()
     email = request.email.strip().lower()
 
@@ -62,10 +89,12 @@ def register_student(request: RegisterRequest):
         )
 
     password_hash = password_hasher.hash(request.password)
+
     connection = get_connection()
 
     try:
         cursor = connection.cursor()
+
         cursor.execute(
             """
             INSERT INTO students (name, email, password_hash)
@@ -73,6 +102,7 @@ def register_student(request: RegisterRequest):
             """,
             (name, email, password_hash)
         )
+
         connection.commit()
 
         return {
@@ -86,6 +116,7 @@ def register_student(request: RegisterRequest):
 
     except sqlite3.IntegrityError:
         connection.rollback()
+
         raise HTTPException(
             status_code=409,
             detail="An account with this email already exists."
@@ -93,6 +124,7 @@ def register_student(request: RegisterRequest):
 
     except sqlite3.Error:
         connection.rollback()
+
         raise HTTPException(
             status_code=500,
             detail="Unable to complete registration."
@@ -102,9 +134,13 @@ def register_student(request: RegisterRequest):
         connection.close()
 
 
+# Create JWT access token
 def create_access_token(student_id: int) -> str:
+
     now = datetime.now(timezone.utc)
-    expires_at = now + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expires_at = now + timedelta(
+        minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+    )
 
     payload = {
         "sub": str(student_id),
@@ -119,8 +155,10 @@ def create_access_token(student_id: int) -> str:
     )
 
 
+# Login student
 @router.post("/login")
 def login_student(request: LoginRequest):
+
     email = request.email.strip().lower()
 
     if not validate_email(email):
@@ -140,10 +178,10 @@ def login_student(request: LoginRequest):
             """,
             (email,)
         ).fetchone()
+
     finally:
         connection.close()
 
-    # Use the same message for unknown email and wrong password.
     if not student or not password_hasher.verify(
         request.password,
         student["password_hash"]
@@ -169,9 +207,11 @@ def login_student(request: LoginRequest):
     }
 
 
+# Get currently authenticated student
 def get_current_student(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+
     token = credentials.credentials
 
     try:
@@ -195,12 +235,15 @@ def get_current_student(
     try:
         student = connection.execute(
             """
-            SELECT id, name, email, course, institution, graduation_year
+            SELECT id, name, email, course, institution,
+                   graduation_year, interests, skills,
+                   preferred_domains
             FROM students
             WHERE id = ?
             """,
             (student_id,)
         ).fetchone()
+
     finally:
         connection.close()
 
@@ -210,14 +253,113 @@ def get_current_student(
             detail="Student account not found."
         )
 
-    return dict(student)
+    result = dict(student)
+
+    for field in ("interests", "skills", "preferred_domains"):
+        try:
+            result[field] = json.loads(result.get(field) or "[]")
+        except (json.JSONDecodeError, TypeError):
+            result[field] = []
+
+    return result
 
 
+# Get student profile
 @router.get("/me")
 def get_my_profile(
     current_student: dict = Depends(get_current_student)
 ):
+
     return {
         "message": "Authentication successful.",
         "student": current_student
     }
+
+
+# Update student profile
+@router.put("/profile")
+def update_student_profile(
+    request: ProfileUpdateRequest,
+    current_student: dict = Depends(get_current_student)
+):
+
+    def clean_list(items: list[str], maximum: int) -> list[str]:
+
+        cleaned = []
+
+        for item in items:
+            value = item.strip()
+
+            if value and value not in cleaned:
+                cleaned.append(value)
+
+            if len(cleaned) >= maximum:
+                break
+
+        return cleaned
+
+    course = request.course.strip()
+    institution = request.institution.strip()
+
+    interests = clean_list(request.interests, 20)
+    skills = clean_list(request.skills, 30)
+    domains = clean_list(request.preferred_domains, 15)
+
+    connection = get_connection()
+
+    try:
+        connection.execute(
+            """
+            UPDATE students
+            SET course = ?,
+                institution = ?,
+                graduation_year = ?,
+                interests = ?,
+                skills = ?,
+                preferred_domains = ?
+            WHERE id = ?
+            """,
+            (
+                course or None,
+                institution or None,
+                request.graduation_year,
+                json.dumps(interests),
+                json.dumps(skills),
+                json.dumps(domains),
+                current_student["id"]
+            )
+        )
+
+        connection.commit()
+
+        updated = connection.execute(
+            """
+            SELECT id, name, email, course, institution,
+                   graduation_year, interests, skills,
+                   preferred_domains
+            FROM students
+            WHERE id = ?
+            """,
+            (current_student["id"],)
+        ).fetchone()
+
+        profile = dict(updated)
+
+        for field in ("interests", "skills", "preferred_domains"):
+            profile[field] = json.loads(profile[field] or "[]")
+
+        return {
+            "message": "Student profile updated successfully.",
+            "student": profile
+        }
+
+    except sqlite3.Error:
+        connection.rollback()
+
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to update student profile."
+        )
+
+    finally:
+        connection.close()

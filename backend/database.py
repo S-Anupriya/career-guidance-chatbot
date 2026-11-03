@@ -75,6 +75,24 @@ def init_db():
             )
         """)
 
+        # 4. Add student career profile fields to existing databases.
+        existing_columns = {
+            row["name"]
+            for row in cursor.execute("PRAGMA table_info(students)").fetchall()
+        }
+
+        new_columns = {
+            "interests": "TEXT DEFAULT '[]'",
+            "skills": "TEXT DEFAULT '[]'",
+            "preferred_domains": "TEXT DEFAULT '[]'",
+        }
+
+        for column, definition in new_columns.items():
+            if column not in existing_columns:
+                cursor.execute(
+                    f"ALTER TABLE students ADD COLUMN {column} {definition}"
+                )
+
         connection.commit()
         print("Future Forge database initialized successfully!")
 
