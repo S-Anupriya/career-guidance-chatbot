@@ -1,8 +1,10 @@
+
 import { useState, useEffect, useRef } from "react";
 import "./App.css";
 import { MarkdownMessage } from "./MarkdownMessage";
 import { AuthScreen } from "./AuthScreen";
 import { StudentDashboard } from "./StudentDashboard";
+import { StudentProfile } from "./StudentProfile";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8002";
 
@@ -13,6 +15,18 @@ type Student = {
   course?: string | null;
   institution?: string | null;
   graduation_year?: number | null;
+  interests?: string[];
+  skills?: string[];
+  preferred_domains?: string[];
+};
+
+type ProfileData = {
+  course: string;
+  institution: string;
+  graduation_year: number | null;
+  interests: string[];
+  skills: string[];
+  preferred_domains: string[];
 };
 
 type Message = {
@@ -20,14 +34,19 @@ type Message = {
   content: string;
 };
 
+type Navigation = "dashboard" | "chat" | "salaries" | "exams" | "profile";
+
 function formatModelName(model: string): string {
   if (!model || model.toLowerCase().includes("no model") || model === "None") {
     return "No Model Installed";
   }
+
   const lower = model.toLowerCase();
+
   if (lower.includes("gemma")) return "Gemma · Local";
   if (lower.includes("qwen")) return "Qwen · Local";
   if (lower.includes("llama")) return "Llama · Local";
+
   return model.split("/").pop()?.split(":")[0] || model;
 }
 
@@ -40,9 +59,11 @@ function App() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [modelName, setModelName] = useState("AI Model · Local");
   const [backendStatus, setBackendStatus] = useState<"connected" | "offline">("connected");
-  const [activeNav, setActiveNav] = useState<"dashboard" | "chat" | "salaries" | "exams">("dashboard");
+  const [activeNav, setActiveNav] = useState<Navigation>("dashboard");
+
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
+  // Validate saved login
   useEffect(() => {
     async function validateSavedLogin() {
       const token = sessionStorage.getItem("future_forge_token");
@@ -80,6 +101,7 @@ function App() {
     sessionStorage.setItem("future_forge_token", token);
     setStudent(loggedInStudent);
     setMessages([]);
+    setActiveNav("dashboard");
   }
 
   function logout() {
@@ -87,9 +109,10 @@ function App() {
     setStudent(null);
     setMessages([]);
     setQuestion("");
-    setActiveNav("chat");
+    setActiveNav("dashboard");
   }
 
+  // Career suggestions
   const suggestions = [
     {
       icon: "🎓",
@@ -117,13 +140,16 @@ function App() {
     }
   ];
 
+  // Check backend health
   useEffect(() => {
     async function checkHealth() {
       try {
         const response = await fetch(`${API_URL}/health`);
+
         if (response.ok) {
           const data = await response.json();
           setBackendStatus("connected");
+
           if (data.model) {
             setModelName(formatModelName(data.model));
           }
@@ -138,23 +164,24 @@ function App() {
     checkHealth();
   }, []);
 
+  // Auto-scroll conversation
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading, isStreaming]);
 
-  // Streaming message handler for fluid ChatGPT / Claude gliding token animation
+  // Stream AI response
   async function streamReply(conversationToSend: Message[]) {
     setIsLoading(true);
     setIsStreaming(false);
 
     try {
+      const token = sessionStorage.getItem("future_forge_token");
+
       const response = await fetch(`${API_URL}/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(sessionStorage.getItem("future_forge_token")
-            ? { Authorization: `Bearer ${sessionStorage.getItem("future_forge_token")}` }
-            : {})
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
           messages: conversationToSend,
@@ -167,17 +194,19 @@ function App() {
       }
 
       setBackendStatus("connected");
+
       const modelHeader = response.headers.get("X-Model-Active");
+
       if (modelHeader) {
         setModelName(formatModelName(modelHeader));
       }
 
       const reader = response.body?.getReader();
+
       if (!reader) {
         throw new Error("Response body is not readable");
       }
 
-      // First token is about to stream: switch from pulsing loader to streaming bubble
       setIsLoading(false);
       setIsStreaming(true);
 
@@ -191,26 +220,51 @@ function App() {
 
       while (true) {
         const { done, value } = await reader.read();
+
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        accumulated += chunk;
+        accumulated += decoder.decode(value, { stream: true });
 
         setMessages((prev) => {
           const updated = [...prev];
-          if (updated.length > 0 && updated[updated.length - 1].role === "assistant") {
+
+          if (
+            updated.length > 0 &&
+            updated[updated.length - 1].role === "assistant"
+          ) {
             updated[updated.length - 1] = {
               role: "assistant",
               content: accumulated
             };
           }
+
           return updated;
         });
       }
 
-    } catch (error: any) {
+      accumulated += decoder.decode();
+
+      if (accumulated) {
+        setMessages((prev) => {
+          const updated = [...prev];
+
+          if (
+            updated.length > 0 &&
+            updated[updated.length - 1].role === "assistant"
+          ) {
+            updated[updated.length - 1] = {
+              role: "assistant",
+              content: accumulated
+            };
+          }
+
+          return updated;
+        });
+      }
+    } catch (error) {
       console.error("Chat streaming error:", error);
-      setIsLoading(false);
+      setBackendStatus("offline");
+
       setMessages((prev) => [
         ...prev,
         {
@@ -225,9 +279,10 @@ function App() {
     }
   }
 
-  // Active chat inquiry
+  // Send a chat message
   async function sendMessage(value = question) {
     const messageToSend = value.trim();
+
     if (!messageToSend || isLoading || isStreaming) return;
 
     const newMessages: Message[] = [
@@ -237,10 +292,11 @@ function App() {
 
     setMessages(newMessages);
     setQuestion("");
+
     await streamReply(newMessages);
   }
 
-  // Fresh isolated window (clears memory and starts with zero VRAM overhead)
+  // Start a fresh conversation
   async function startFreshConversation(prompt: string) {
     if (isLoading || isStreaming) return;
 
@@ -250,29 +306,65 @@ function App() {
 
     setMessages(freshMessages);
     setQuestion("");
+
     await streamReply(freshMessages);
   }
 
   function newChat() {
     if (isLoading || isStreaming) return;
+
     setMessages([]);
     setQuestion("");
     setActiveNav("chat");
   }
 
-  function handleNavClick(target: "dashboard" | "chat" | "salaries" | "exams") {
+  // Sidebar navigation
+  function handleNavClick(target: Navigation) {
     if (isLoading || isStreaming) return;
+
     setActiveNav(target);
 
-    if (target === "dashboard") return;
+    if (target === "dashboard" || target === "profile") return;
 
     if (target === "salaries") {
-      startFreshConversation("What are the current starting salary benchmarks for freshers in India across Software, Data Science, Finance, and Government jobs?");
+      startFreshConversation(
+        "What are the current starting salary benchmarks for freshers in India across Software, Data Science, Finance, and Government jobs?"
+      );
     } else if (target === "exams") {
-      startFreshConversation("Give me a roadmap and preparation guide for top competitive entrance exams in India like NIMCET, GATE, CAT, and SSC CGL.");
+      startFreshConversation(
+        "Give me a roadmap and preparation guide for top competitive entrance exams in India like NIMCET, GATE, CAT, and SSC CGL."
+      );
     } else {
-      newChat();
+      setMessages([]);
+      setQuestion("");
     }
+  }
+
+  // Save student profile through backend API
+  async function saveStudentProfile(profile: ProfileData) {
+    const token = sessionStorage.getItem("future_forge_token");
+
+    if (!token) {
+      throw new Error("Your login session has expired. Please log in again.");
+    }
+
+    const response = await fetch(`${API_URL}/auth/profile`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(profile)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.detail || data.message || "Unable to save profile.");
+    }
+
+    setStudent(data.student);
+    setActiveNav("dashboard");
   }
 
   if (!authChecked) {
@@ -291,9 +383,7 @@ function App() {
 
   return (
     <div className="app-container">
-
       <aside className="sidebar">
-
         <div className="brand" onClick={() => handleNavClick("chat")}>
           <div className="brand-badge">✦</div>
           <div>
@@ -302,7 +392,11 @@ function App() {
           </div>
         </div>
 
-        <button className="new-chat-btn" onClick={newChat} disabled={isLoading || isStreaming}>
+        <button
+          className="new-chat-btn"
+          onClick={newChat}
+          disabled={isLoading || isStreaming}
+        >
           <span>+</span> New Conversation
         </button>
 
@@ -344,6 +438,15 @@ function App() {
             <span className="nav-bullet">◈</span>
             <span className="nav-label">Exam Roadmaps</span>
           </button>
+
+          <button
+            className={`nav-item ${activeNav === "profile" ? "active" : ""}`}
+            onClick={() => handleNavClick("profile")}
+            disabled={isLoading || isStreaming}
+          >
+            <span className="nav-bullet">◉</span>
+            <span className="nav-label">My Profile</span>
+          </button>
         </div>
 
         <div className="sidebar-bottom">
@@ -351,31 +454,40 @@ function App() {
             <span className="edition-flag">🇮🇳</span>
             <span>India Edition (2025/26)</span>
           </div>
+
           <div className="user-profile">
             <div className="user-avatar">
               {student.name.charAt(0).toUpperCase()}
             </div>
+
             <div className="user-details">
               <p className="user-name">{student.name}</p>
               <p className="user-sub">Career Explorer</p>
             </div>
+
             <button className="logout-btn" onClick={logout}>
               Log out
             </button>
           </div>
         </div>
-
       </aside>
 
       <main className="main-content">
-
         <header className="topbar">
           <div className="topbar-left">
-            <span className={`status-indicator ${backendStatus === "offline" ? "offline" : ""}`}></span>
+            <span
+              className={`status-indicator ${
+                backendStatus === "offline" ? "offline" : ""
+              }`}
+            ></span>
+
             <span className="status-label">
-              {backendStatus === "connected" ? "AI CAREER ASSISTANT" : "BACKEND OFFLINE"}
+              {backendStatus === "connected"
+                ? "AI CAREER ASSISTANT"
+                : "BACKEND OFFLINE"}
             </span>
           </div>
+
           <div className="model-chip" title={modelName}>
             <span className="chip-dot">◈</span>
             <span className="chip-name">{modelName}</span>
@@ -385,152 +497,155 @@ function App() {
         {activeNav === "dashboard" ? (
           <StudentDashboard
             student={student}
+            onEditProfile={() => setActiveNav("profile")}
             onOpenChat={(prompt) => {
               setActiveNav("chat");
               startFreshConversation(prompt);
             }}
           />
+        ) : activeNav === "profile" ? (
+          <StudentProfile
+            student={student}
+            onSave={saveStudentProfile}
+            onBack={() => setActiveNav("dashboard")}
+          />
         ) : (
-        <>
-        <section className={`chat-viewport ${messages.length === 0 ? "empty" : ""}`}>
+          <>
+            <section
+              className={`chat-viewport ${
+                messages.length === 0 ? "empty" : ""
+              }`}
+            >
+              {messages.length === 0 ? (
+                <div className="hero-section">
+                  <div className="hero-pill">
+                    <span>✦</span>
+                    <span>YOUR FUTURE STARTS HERE</span>
+                  </div>
 
-          {messages.length === 0 ? (
+                  <h1>
+                    Discover your potential.
+                    <br />
+                    <em>Find your path.</em>
+                  </h1>
 
-            <div className="hero-section">
+                  <p className="hero-subtext">
+                    Ask any question about your studies, career opportunities,
+                    higher education, or salary expectations in India.
+                  </p>
 
-              <div className="hero-pill">
-                <span>✦</span>
-                <span>YOUR FUTURE STARTS HERE</span>
-              </div>
-
-              <h1>
-                Discover your potential.
-                <br />
-                <em>Find your path.</em>
-              </h1>
-
-              <p className="hero-subtext">
-                Ask any question about your studies, career opportunities,
-                higher education, or salary expectations in India.
-              </p>
-
-              <div className="pathway-grid">
-
-                {suggestions.map((item, i) => (
-
-                  <button
-                    key={i}
-                    className="pathway-card"
-                    onClick={() => startFreshConversation(item.prompt)}
-                    disabled={isLoading || isStreaming}
-                  >
-                    <span className="pathway-icon">{item.icon}</span>
-                    <h3>{item.title}</h3>
-                    <p>{item.description}</p>
-                    <span className="card-action">Ask this &rarr;</span>
-                  </button>
-
-                ))}
-
-              </div>
-
-            </div>
-
-          ) : (
-
-            <div className="conversation-thread">
-
-              {messages.map((message, index) => (
-
-                <div
-                  key={index}
-                  className={`message-row ${message.role}`}
-                >
-                  <div className={`message-bubble ${message.role}`}>
-                    <div className="bubble-header">
-                      <span className="bubble-author">
-                        {message.role === "user" ? "You" : "✦ CareerPath AI"}
-                      </span>
-                    </div>
-                    {message.role === "assistant" ? (
-                      <div className="assistant-wrapper">
-                        <MarkdownMessage content={message.content} />
-                      </div>
-                    ) : (
-                      <p className="user-message-text">{message.content}</p>
-                    )}
+                  <div className="pathway-grid">
+                    {suggestions.map((item, i) => (
+                      <button
+                        key={i}
+                        className="pathway-card"
+                        onClick={() => startFreshConversation(item.prompt)}
+                        disabled={isLoading || isStreaming}
+                      >
+                        <span className="pathway-icon">{item.icon}</span>
+                        <h3>{item.title}</h3>
+                        <p>{item.description}</p>
+                        <span className="card-action">Ask this &rarr;</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
+              ) : (
+                <div className="conversation-thread">
+                  {messages.map((message, index) => (
+                    <div
+                      key={index}
+                      className={`message-row ${message.role}`}
+                    >
+                      <div className={`message-bubble ${message.role}`}>
+                        <div className="bubble-header">
+                          <span className="bubble-author">
+                            {message.role === "user"
+                              ? "You"
+                              : "✦ CareerPath AI"}
+                          </span>
+                        </div>
 
-              ))}
+                        {message.role === "assistant" ? (
+                          <div className="assistant-wrapper">
+                            <MarkdownMessage content={message.content} />
+                          </div>
+                        ) : (
+                          <p className="user-message-text">
+                            {message.content}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
 
-              {isLoading && (
-                <div className="message-row assistant">
-                  <div className="message-bubble assistant loading">
-                    <div className="bubble-header">
-                      <span className="bubble-author">✦ CareerPath AI</span>
-                      <span className="thinking-text">Thinking...</span>
+                  {isLoading && (
+                    <div className="message-row assistant">
+                      <div className="message-bubble assistant loading">
+                        <div className="bubble-header">
+                          <span className="bubble-author">
+                            ✦ CareerPath AI
+                          </span>
+                          <span className="thinking-text">Thinking...</span>
+                        </div>
+
+                        <div className="typing-pulse">
+                          <span></span>
+                          <span></span>
+                          <span></span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="typing-pulse">
-                      <span></span>
-                      <span></span>
-                      <span></span>
-                    </div>
-                  </div>
+                  )}
+
+                  <div ref={messagesEndRef} />
                 </div>
               )}
+            </section>
 
-              <div ref={messagesEndRef} />
+            <footer className="composer-container">
+              <div className="composer-box">
+                <input
+                  id="career-input"
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
 
-            </div>
+                      if (
+                        e.nativeEvent.isComposing ||
+                        (e.nativeEvent as any).keyCode === 229
+                      ) {
+                        return;
+                      }
 
-          )}
+                      sendMessage();
+                    }
+                  }}
+                  placeholder="Ask anything about careers, salaries in India, exams, or next steps..."
+                  disabled={isLoading || isStreaming}
+                  autoComplete="off"
+                />
 
-        </section>
+                <button
+                  className="send-btn"
+                  onClick={() => sendMessage()}
+                  disabled={!question.trim() || isLoading || isStreaming}
+                  aria-label="Send message"
+                >
+                  &uarr;
+                </button>
+              </div>
 
-        <footer className="composer-container">
-
-          <div className="composer-box">
-
-            <input
-              id="career-input"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  if (e.nativeEvent.isComposing || (e.nativeEvent as any).keyCode === 229) {
-                    return;
-                  }
-                  sendMessage();
-                }
-              }}
-              placeholder="Ask anything about careers, salaries in India, exams, or next steps..."
-              disabled={isLoading || isStreaming}
-              autoComplete="off"
-            />
-
-            <button
-              className="send-btn"
-              onClick={() => sendMessage()}
-              disabled={!question.trim() || isLoading || isStreaming}
-              aria-label="Send message"
-            >
-              &uarr;
-            </button>
-
-          </div>
-
-          <p className="composer-footer-note">
-            AI suggestions are for career guidance. Double check important exam dates and requirements.
-          </p>
-
-        </footer>
-        </>
+              <p className="composer-footer-note">
+                AI suggestions are for career guidance. Double check important
+                exam dates and requirements.
+              </p>
+            </footer>
+          </>
         )}
-
       </main>
-
     </div>
   );
 }
