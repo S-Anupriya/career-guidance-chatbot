@@ -8,6 +8,8 @@ from pydantic import BaseModel
 import ollama
 
 from rag import retrieve_career_context, clean_model_output
+from auth import router as auth_router
+from database import init_db
 
 load_dotenv()
 
@@ -19,6 +21,15 @@ app = FastAPI(
     description="Empathetic, grounded, and verified career guidance for Indian students",
     version="2.2.0"
 )
+
+# Initialize the database and register authentication routes
+@app.on_event("startup")
+def startup_event():
+    init_db()
+
+
+app.include_router(auth_router)
+
 
 # Cross-platform CORS
 app.add_middleware(
