@@ -9,6 +9,7 @@ OS="$(uname -s)"
 # Track spawned background PIDs for graceful teardown
 PIDS=()
 cleanup() {
+    trap - SIGINT SIGTERM EXIT
     echo ""
     echo "➜ Stopping CareerPath AI servers..."
     for pid in "${PIDS[@]}"; do

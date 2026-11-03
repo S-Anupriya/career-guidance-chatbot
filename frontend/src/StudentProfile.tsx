@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type Student = {
   id: number;
@@ -46,6 +45,16 @@ export function StudentProfile({ student, onSave, onBack }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  // Sync form state if student profile updates
+  useEffect(() => {
+    setCourse(student.course || "");
+    setInstitution(student.institution || "");
+    setGraduationYear(student.graduation_year?.toString() || "");
+    setInterests((student.interests || []).join(", "));
+    setSkills((student.skills || []).join(", "));
+    setDomains((student.preferred_domains || []).join(", "));
+  }, [student]);
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -81,131 +90,138 @@ export function StudentProfile({ student, onSave, onBack }: Props) {
   }
 
   return (
-    <section className="dashboard-page profile-editor-page">
-      <button className="profile-back-btn" onClick={onBack}>
-        ← Back to Dashboard
-      </button>
+    <section className="dashboard-page">
+      <div className="profile-page-container">
+        <button className="profile-back-button" onClick={onBack}>
+          &larr; Back to Dashboard
+        </button>
 
-      <div className="profile-editor-heading">
-        <span className="dashboard-eyebrow">YOUR PERSONAL SPACE</span>
-        <h1>My Student Profile</h1>
-        <p>Tell Future Forge about your education, interests and skills.</p>
+        <div className="profile-page-header">
+          <div className="hero-pill">
+            <span>✦</span>
+            <span>ACADEMIC PROFILE</span>
+          </div>
+          <h1>My Student Profile</h1>
+          <p className="dashboard-subtitle">
+            Keep your degree, timeline, and current skills updated so CareerPath AI tailors all guidance to your stage.
+          </p>
+        </div>
+
+        <form className="profile-editor-card" onSubmit={handleSubmit}>
+          <div className="profile-section-heading">
+            <span className="section-badge-icon">👤</span>
+            <div>
+              <h3>Basic Academic Information</h3>
+              <p>Your registered profile details and college enrollment</p>
+            </div>
+          </div>
+
+          <div className="profile-form-grid">
+            <label>
+              Full Name
+              <input value={student.name} disabled className="input-disabled" />
+            </label>
+
+            <label>
+              Email Address
+              <input value={student.email} disabled className="input-disabled" />
+            </label>
+
+            <label>
+              Course / Degree
+              <input
+                value={course}
+                onChange={e => setCourse(e.target.value)}
+                placeholder="e.g. BCA, B.Tech CSE, B.Com"
+                maxLength={100}
+              />
+            </label>
+
+            <label>
+              College / Institution
+              <input
+                value={institution}
+                onChange={e => setInstitution(e.target.value)}
+                placeholder="e.g. East Point College of Higher Education"
+                maxLength={150}
+              />
+            </label>
+
+            <label>
+              Graduation Year
+              <input
+                type="number"
+                min="2000"
+                max="2100"
+                value={graduationYear}
+                onChange={e => setGraduationYear(e.target.value)}
+                placeholder="e.g. 2026"
+              />
+            </label>
+          </div>
+
+          <div className="profile-section-heading">
+            <span className="section-badge-icon">✨</span>
+            <div>
+              <h3>Skills, Interests & Target Domains</h3>
+              <p>Separate items with commas (e.g., Python, SQL, Cloud Computing)</p>
+            </div>
+          </div>
+
+          <div className="profile-form-grid full-width-stack">
+            <label>
+              Your Technical & Soft Skills
+              <textarea
+                value={skills}
+                onChange={e => setSkills(e.target.value)}
+                placeholder="e.g. Python, SQL, Data Structures, Git, Problem Solving"
+                rows={3}
+              />
+            </label>
+
+            <label>
+              Your Academic & Professional Interests
+              <textarea
+                value={interests}
+                onChange={e => setInterests(e.target.value)}
+                placeholder="e.g. Machine Learning, Cloud Architecture, Financial Modeling"
+                rows={3}
+              />
+            </label>
+
+            <label>
+              Preferred Career Domains
+              <textarea
+                value={domains}
+                onChange={e => setDomains(e.target.value)}
+                placeholder="e.g. AI/ML Engineering, Product Management, NIT MCA, PSU / Govt"
+                rows={3}
+              />
+            </label>
+          </div>
+
+          {error && <div className="auth-message error">{error}</div>}
+
+          <div className="profile-actions-bar">
+            <button
+              type="button"
+              className="action-button-secondary"
+              onClick={onBack}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              className="action-button-primary"
+              disabled={saving}
+            >
+              {saving ? "Saving Changes..." : "Save My Profile \u2192"}
+            </button>
+          </div>
+        </form>
       </div>
-
-      <form className="profile-editor-card" onSubmit={handleSubmit}>
-        <div className="profile-section-heading">
-          <span>👤</span>
-          <div>
-            <h2>Basic Information</h2>
-            <p>Your registered account details</p>
-          </div>
-        </div>
-
-        <div className="profile-form-grid">
-          <label>
-            Full Name
-            <input value={student.name} disabled />
-          </label>
-
-          <label>
-            Email Address
-            <input value={student.email} disabled />
-          </label>
-
-          <label>
-            Course
-            <input
-              value={course}
-              onChange={e => setCourse(e.target.value)}
-              placeholder="e.g. BCA"
-              maxLength={100}
-            />
-          </label>
-
-          <label>
-            College / Institution
-            <input
-              value={institution}
-              onChange={e => setInstitution(e.target.value)}
-              placeholder="Enter your college name"
-              maxLength={150}
-            />
-          </label>
-
-          <label>
-            Graduation Year
-            <input
-              type="number"
-              min="2000"
-              max="2100"
-              value={graduationYear}
-              onChange={e => setGraduationYear(e.target.value)}
-              placeholder="e.g. 2027"
-            />
-          </label>
-        </div>
-
-        <div className="profile-section-heading">
-          <span>✨</span>
-          <div>
-            <h2>Interests & Skills</h2>
-            <p>Separate each entry with a comma</p>
-          </div>
-        </div>
-
-        <div className="profile-form-grid">
-          <label className="profile-full-width">
-            Your Interests
-            <textarea
-              value={interests}
-              onChange={e => setInterests(e.target.value)}
-              placeholder="e.g. Artificial Intelligence, Designing, Data Science"
-              rows={3}
-            />
-          </label>
-
-          <label className="profile-full-width">
-            Your Skills
-            <textarea
-              value={skills}
-              onChange={e => setSkills(e.target.value)}
-              placeholder="e.g. Python, HTML, Communication, Excel"
-              rows={3}
-            />
-          </label>
-
-          <label className="profile-full-width">
-            Preferred Career Domains
-            <textarea
-              value={domains}
-              onChange={e => setDomains(e.target.value)}
-              placeholder="e.g. AI and ML, Government Jobs, Web Development"
-              rows={3}
-            />
-          </label>
-        </div>
-
-        {error && <p className="profile-error">{error}</p>}
-
-        <div className="profile-form-actions">
-          <button
-            type="button"
-            className="profile-cancel-btn"
-            onClick={onBack}
-            disabled={saving}
-          >
-            Cancel
-          </button>
-
-          <button
-            type="submit"
-            className="dashboard-primary-btn"
-            disabled={saving}
-          >
-            {saving ? "Saving..." : "Save My Profile →"}
-          </button>
-        </div>
-      </form>
     </section>
   );
 }

@@ -60,9 +60,56 @@ class ProfileUpdateRequest(BaseModel):
     )
 
 
-# Validate email
-def validate_email(email: str) -> bool:
-    return bool(re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email))
+DISPOSABLE_EMAIL_DOMAINS = {
+    "tempmail.com",
+    "10minutemail.com",
+    "guerrillamail.com",
+    "mailinator.com",
+    "throwawaymail.com",
+    "fakeinbox.com",
+    "yopmail.com",
+    "trashmail.com",
+    "dispostable.com",
+    "sharklasers.com",
+    "getairmail.com",
+}
+
+
+# Validate email format and check against disposable providers
+def validate_email(email: str) -> tuple[bool, str]:
+    if not re.fullmatch(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", email):
+        return False, "Please enter a valid email address (e.g. student@college.edu or name@gmail.com)."
+
+    parts = email.split("@")
+    if len(parts) != 2:
+        return False, "Malformed email address."
+
+    domain = parts[1].lower()
+    if domain in DISPOSABLE_EMAIL_DOMAINS:
+        return False, "Temporary or disposable email domains are not allowed."
+
+    tld = domain.split(".")[-1]
+    if len(tld) < 2:
+        return False, "Invalid email domain extension."
+
+    return True, ""
+
+
+# Validate password strength (min 8 chars, uppercase, lowercase, digit, special char)
+def validate_password_strength(password: str) -> tuple[bool, str]:
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long."
+    if len(password) > 128:
+        return False, "Password cannot exceed 128 characters."
+    if not re.search(r"[A-Z]", password):
+        return False, "Password must contain at least one uppercase letter (A-Z)."
+    if not re.search(r"[a-z]", password):
+        return False, "Password must contain at least one lowercase letter (a-z)."
+    if not re.search(r"\d", password):
+        return False, "Password must contain at least one numeric digit (0-9)."
+    if not re.search(r"[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]", password):
+        return False, "Password must contain at least one special character (!@#$%^&*...)."
+    return True, ""
 
 
 # Register student
@@ -75,14 +122,16 @@ def register_student(request: RegisterRequest):
     if len(name) < 2:
         raise HTTPException(
             status_code=400,
-            detail="Please enter a valid name."
+            detail="Please enter a valid student name (at least 2 characters)."
         )
 
-    if not validate_email(email):
-        raise HTTPException(
-            status_code=400,
-            detail="Please enter a valid email address."
-        )
+    is_valid_email, email_err = validate_email(email)
+    if not is_valid_email:
+        raise HTTPException(status_code=400, detail=email_err)
+
+    is_strong_pw, pw_err = validate_password_strength(request.password)
+    if not is_strong_pw:
+        raise HTTPException(status_code=400, detail=pw_err)
 
     password_hash = password_hasher.hash(request.password)
 
@@ -130,6 +179,21 @@ def register_student(request: RegisterRequest):
         connection.close()
 
 
+def format_student_profile(student_row: sqlite3.Row | dict) -> dict:
+    """Format student row into dictionary with parsed JSON list fields and stripped password."""
+    profile = dict(student_row)
+    profile.pop("password_hash", None)
+    for field in ("interests", "skills", "preferred_domains"):
+        raw = profile.get(field)
+        if isinstance(raw, list):
+            continue
+        try:
+            profile[field] = json.loads(raw or "[]")
+        except (json.JSONDecodeError, TypeError):
+            profile[field] = []
+    return profile
+
+
 # Create JWT access token
 def create_access_token(student_id: int) -> str:
 
@@ -157,10 +221,11 @@ def login_student(request: LoginRequest):
 
     email = request.email.strip().lower()
 
-    if not validate_email(email):
+    is_valid_email, email_err = validate_email(email)
+    if not is_valid_email:
         raise HTTPException(
             status_code=400,
-            detail="Please enter a valid email address."
+            detail=email_err
         )
 
     connection = get_connection()
@@ -168,7 +233,9 @@ def login_student(request: LoginRequest):
     try:
         student = connection.execute(
             """
-            SELECT id, name, email, password_hash
+            SELECT id, name, email, password_hash,
+                   course, institution, graduation_year,
+                   interests, skills, preferred_domains
             FROM students
             WHERE email = ?
             """,
@@ -195,11 +262,7 @@ def login_student(request: LoginRequest):
         "access_token": token,
         "token_type": "bearer",
         "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        "student": {
-            "id": student["id"],
-            "name": student["name"],
-            "email": student["email"]
-        }
+        "student": format_student_profile(student)
     }
 
 
@@ -249,15 +312,7 @@ def get_current_student(
             detail="Student account not found."
         )
 
-    result = dict(student)
-
-    for field in ("interests", "skills", "preferred_domains"):
-        try:
-            result[field] = json.loads(result.get(field) or "[]")
-        except (json.JSONDecodeError, TypeError):
-            result[field] = []
-
-    return result
+    return format_student_profile(student)
 
 
 security_optional = HTTPBearer(auto_error=False)
@@ -298,14 +353,7 @@ def get_optional_student(
     if not student:
         return None
 
-    result = dict(student)
-    for field in ("interests", "skills", "preferred_domains"):
-        try:
-            result[field] = json.loads(result.get(field) or "[]")
-        except (json.JSONDecodeError, TypeError):
-            result[field] = []
-
-    return result
+    return format_student_profile(student)
 
 
 # Get student profile
@@ -387,14 +435,9 @@ def update_student_profile(
             (current_student["id"],)
         ).fetchone()
 
-        profile = dict(updated)
-
-        for field in ("interests", "skills", "preferred_domains"):
-            profile[field] = json.loads(profile[field] or "[]")
-
         return {
             "message": "Student profile updated successfully.",
-            "student": profile
+            "student": format_student_profile(updated)
         }
 
     except sqlite3.Error:

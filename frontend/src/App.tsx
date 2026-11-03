@@ -4,6 +4,8 @@ import { MarkdownMessage } from "./MarkdownMessage";
 import { AuthScreen } from "./AuthScreen";
 import { StudentDashboard } from "./StudentDashboard";
 import { StudentProfile } from "./StudentProfile";
+import ThoughtLine from "./components/ThoughtLine";
+import GhostFibers from "./components/GhostFibers";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
@@ -61,6 +63,10 @@ function formatModelName(model: string): string {
 function App() {
   const [student, setStudent] = useState<Student | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    const saved = localStorage.getItem("careerpath_theme");
+    return (saved === "light" || saved === "dark") ? saved : "dark";
+  });
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
@@ -72,6 +78,16 @@ function App() {
   const [activeNav, setActiveNav] = useState<Navigation>("dashboard");
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Sync theme to root DOM attribute
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("careerpath_theme", theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  };
 
   // Fetch previous conversations for logged in student
   const fetchConversations = useCallback(async () => {
@@ -185,6 +201,7 @@ function App() {
   // Delete a conversation
   async function deleteConversation(e: React.MouseEvent, convId: number) {
     e.stopPropagation();
+    e.preventDefault();
     const token = sessionStorage.getItem("future_forge_token");
     if (!token) return;
 
@@ -471,30 +488,41 @@ function App() {
     setActiveNav("dashboard");
   }
 
-  if (!authChecked) {
-    return (
-      <main className="auth-page">
-        <section className="auth-card">
-          <p>Loading Future Forge...</p>
-        </section>
-      </main>
-    );
-  }
-
-  if (!student) {
-    return <AuthScreen onAuthenticated={handleAuthenticated} />;
-  }
-
   return (
-    <div className="app-container">
-      <aside className="sidebar">
-        <div className="brand" onClick={() => handleNavClick("dashboard")} style={{ cursor: "pointer" }}>
-          <div className="brand-badge">✦</div>
-          <div>
-            <h2>CareerPath</h2>
-            <p className="brand-sub">Career Guidance AI</p>
-          </div>
-        </div>
+    <div className="app-shell">
+      <div className="app-fibers-bg" aria-hidden="true">
+        <GhostFibers
+          glowColor={theme === "dark" ? "#38bdf8" : "#0284c7"}
+          lineColor={theme === "dark" ? "#7dd3fc" : "#0369a1"}
+          secondaryColor={theme === "dark" ? "#818cf8" : "#4f46e5"}
+          speed={0.4}
+          threads={48}
+          brightness={0.85}
+          glow={0.8}
+          particles={0.6}
+          lightMode={theme === "light"}
+          mouseInteraction={true}
+        />
+      </div>
+
+      {!authChecked ? (
+        <main className="auth-page">
+          <section className="auth-card">
+            <p>Loading CareerPath AI...</p>
+          </section>
+        </main>
+      ) : !student ? (
+        <AuthScreen onAuthenticated={handleAuthenticated} />
+      ) : (
+        <div className="app-container">
+          <aside className="sidebar">
+            <div className="brand" onClick={() => handleNavClick("dashboard")} style={{ cursor: "pointer" }}>
+              <div className="brand-badge">✦</div>
+              <div>
+                <h2>CareerPath</h2>
+                <p className="brand-sub">Career Guidance AI</p>
+              </div>
+            </div>
 
         <button
           className="new-chat-btn"
@@ -563,27 +591,31 @@ function App() {
               <p className="empty-history-text">No saved conversations yet.</p>
             ) : (
               conversations.map((c) => (
-                <button
+                <div
                   key={c.id}
                   className={`conversation-item ${
                     activeNav === "chat" && currentConversationId === c.id ? "active" : ""
                   }`}
                   onClick={() => loadConversation(c.id)}
-                  disabled={isLoading || isStreaming}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") loadConversation(c.id);
+                  }}
                   title={c.title}
                 >
                   <span className="conv-icon">💬</span>
                   <span className="conv-title">{c.title}</span>
-                  <span
+                  <button
+                    type="button"
                     className="conv-delete-btn"
                     onClick={(e) => deleteConversation(e, c.id)}
                     title="Delete conversation"
-                    role="button"
-                    tabIndex={0}
+                    aria-label="Delete conversation"
                   >
                     ×
-                  </span>
-                </button>
+                  </button>
+                </div>
               ))
             )}
           </div>
@@ -628,9 +660,19 @@ function App() {
             </span>
           </div>
 
-          <div className="model-chip" title={modelName}>
-            <span className="chip-dot">◈</span>
-            <span className="chip-name">{modelName}</span>
+          <div className="topbar-right">
+            <button
+              className="theme-toggle-btn"
+              onClick={toggleTheme}
+              title={`Switch to ${theme === "dark" ? "Light" : "Dark"} mode`}
+            >
+              {theme === "dark" ? "☀️ Light" : "🌙 Dark"}
+            </button>
+
+            <div className="model-chip" title={modelName}>
+              <span className="chip-dot">◈</span>
+              <span className="chip-name">{modelName}</span>
+            </div>
           </div>
         </header>
 
@@ -721,19 +763,25 @@ function App() {
 
                   {isLoading && (
                     <div className="message-row assistant">
-                      <div className="message-bubble assistant loading">
-                        <div className="bubble-header">
-                          <span className="bubble-author">
-                            ✦ CareerPath AI
-                          </span>
-                          <span className="thinking-text">Thinking...</span>
-                        </div>
-
-                        <div className="typing-pulse">
-                          <span></span>
-                          <span></span>
-                          <span></span>
-                        </div>
+                      <div className="message-bubble assistant thought-bubble">
+                        <ThoughtLine
+                          working={isLoading}
+                          steps={[
+                            "Reading student profile & context",
+                            "Analyzing Indian industry trends",
+                            "Formulating personalized guidance"
+                          ]}
+                          label="Synthesizing career advice…"
+                          doneLabel="Analysis complete"
+                          glyph="sparkle"
+                          color={theme === "dark" ? "#7dd3fc" : "#0284c7"}
+                          glyphColor={theme === "dark" ? "#38bdf8" : "#0284c7"}
+                          fontSize={13.5}
+                          breathPeriod={1.5}
+                          breathDepth={0.4}
+                          collapsible={false}
+                          showTimer={true}
+                        />
                       </div>
                     </div>
                   )}
@@ -786,6 +834,8 @@ function App() {
           </>
         )}
       </main>
+    </div>
+      )}
     </div>
   );
 }

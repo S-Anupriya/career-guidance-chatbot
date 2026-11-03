@@ -1,4 +1,3 @@
-
 type Student = {
   id: number;
   name: string;
@@ -28,132 +27,149 @@ export function StudentDashboard({
     {
       icon: "🧭",
       title: "Career Explorer",
-      description: "Discover career paths that match your education and interests.",
+      description: "Discover career paths that match your degree, skills, and interests in India.",
       prompt: "Help me explore career options based on my education and interests."
     },
     {
       icon: "✨",
-      title: "AI Career Recommendations",
-      description: "Get personalized suggestions for your future career.",
+      title: "AI Recommendations",
+      description: "Get personalized suggestions and CTC salary benchmarks for your profile.",
       prompt: "Recommend suitable career paths for me in India and explain why they may fit."
     },
     {
       icon: "📚",
       title: "Learning Roadmap",
-      description: "Find the skills, courses and steps needed to reach your goal.",
+      description: "Step-by-step guidance on skills, projects, and certifications needed.",
       prompt: "Create a step-by-step learning roadmap to help me prepare for my future career."
     },
     {
       icon: "🎯",
       title: "Exam Preparation",
-      description: "Explore competitive exams, eligibility and preparation plans.",
+      description: "Explore competitive entrance exams (NIMCET, GATE, CAT, SSC CGL) and roadmaps.",
       prompt: "Help me explore competitive exams in India and create a preparation roadmap."
     }
   ];
 
   return (
     <section className="dashboard-page">
-
-      <div className="dashboard-welcome">
-        <div>
-          <span className="dashboard-eyebrow">STUDENT DASHBOARD</span>
-          <h1>Welcome back, {firstName}! <span>✦</span></h1>
-          <p>Your future is full of possibilities. Let's find your direction.</p>
+      <div className="dashboard-container">
+        <div className="dashboard-welcome">
+          <div>
+            <div className="hero-pill">
+              <span>✦</span>
+              <span>STUDENT DASHBOARD</span>
+            </div>
+            <h1 className="dashboard-welcome-heading">
+              Welcome back, <span className="student-name-highlight">{firstName}</span>.
+              <br />
+              <em>Find your direction.</em>
+            </h1>
+            <p className="dashboard-subtitle">
+              Your personalized career headquarters. Select a pathway below or talk directly to your AI counselor.
+            </p>
+          </div>
         </div>
 
-        <div className="dashboard-avatar">
-          {student.name.charAt(0).toUpperCase()}
-        </div>
-      </div>
+        <div className="dashboard-profile-card">
+          <div className="profile-card-left">
+            <div className="profile-icon-badge" aria-hidden="true">
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                <path d="M6 12v5c0 2 4 3 6 3s6-1 6-3v-5" />
+              </svg>
+            </div>
+            <div className="profile-card-details">
+              <span className="profile-badge-label">REGISTERED STUDENT PROFILE</span>
+              <h2>{student.name}</h2>
+              <p className="profile-meta-text">
+                {student.course ? <strong>{student.course}</strong> : "Course not set"}
+                {student.institution ? ` · ${student.institution}` : ""}
+                {student.graduation_year ? ` · Class of ${student.graduation_year}` : ""}
+              </p>
+              <p className="profile-email-text">{student.email}</p>
 
-      <div className="dashboard-profile">
-        <div className="dashboard-profile-icon">🎓</div>
+              {student.skills && student.skills.length > 0 && (
+                <div className="profile-tags-row">
+                  {student.skills.slice(0, 5).map((skill, idx) => (
+                    <span key={idx} className="profile-skill-pill">
+                      {skill}
+                    </span>
+                  ))}
+                  {student.skills.length > 5 && (
+                    <span className="profile-skill-more">+{student.skills.length - 5} more</span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
 
-        <div className="dashboard-profile-info">
-          <span className="dashboard-card-label">YOUR STUDENT PROFILE</span>
-          <h2>{student.name}</h2>
-          <p>{student.email}</p>
-
-          <p>
-            {student.course || "Course not added"}
-            {student.institution ? ` · ${student.institution}` : ""}
-            {student.graduation_year
-              ? ` · Class of ${student.graduation_year}`
-              : ""}
-          </p>
-        </div>
-
-        <div className="dashboard-profile-actions">
-          <span className="dashboard-profile-status">Account active</span>
-
-          <button
-            className="profile-edit-btn"
-            onClick={onEditProfile}
-          >
-            ✎ Edit Profile
-          </button>
-        </div>
-      </div>
-
-      <div className="dashboard-section-heading">
-        <div>
-          <span className="dashboard-eyebrow">EXPLORE YOUR POSSIBILITIES</span>
-          <h2>Your Career Journey</h2>
-          <p>Choose where you would like to begin.</p>
-        </div>
-      </div>
-
-      <div className="dashboard-feature-grid">
-        {features.map((feature) => (
-          <button
-            className="dashboard-feature-card"
-            key={feature.title}
-            onClick={() => onOpenChat(feature.prompt)}
-          >
-            <span className="dashboard-feature-icon">{feature.icon}</span>
-            <h3>{feature.title}</h3>
-            <p>{feature.description}</p>
-            <span className="dashboard-card-action">
-              Explore <span>→</span>
-            </span>
-          </button>
-        ))}
-      </div>
-
-      <div className="dashboard-bottom-grid">
-
-        <div className="dashboard-journey-card">
-          <span className="dashboard-eyebrow">YOUR NEXT STEP</span>
-          <h2>Start with a conversation.</h2>
-
-          <p>
-            Tell Future Forge about your goals, interests and education.
-            Your AI career assistant can help you plan what comes next.
-          </p>
-
-          <button
-            className="dashboard-primary-btn"
-            onClick={() =>
-              onOpenChat(
-                "Help me understand my strengths and explore suitable career options."
-              )
-            }
-          >
-            Talk to AI Assistant <span>→</span>
-          </button>
+          <div className="profile-card-right">
+            <span className="account-status-pill">Active</span>
+            <button className="profile-edit-button" onClick={onEditProfile}>
+              Edit Profile
+            </button>
+          </div>
         </div>
 
-        <div className="dashboard-tip-card">
-          <span className="dashboard-tip-icon">💡</span>
-          <span className="dashboard-eyebrow">A LITTLE REMINDER</span>
-          <h3>Your journey, your pace.</h3>
-
-          <p>
-            You don't need to have everything figured out today.
-            Explore, learn and take one step at a time.
-          </p>
+        <div className="dashboard-section-header">
+          <div>
+            <span className="section-eyebrow">EXPLORE YOUR POSSIBILITIES</span>
+            <h2>Curated Career Pathways</h2>
+            <p>Select a pathway to start a tailored counseling session with verified benchmarks.</p>
+          </div>
         </div>
 
+        <div className="pathway-grid">
+          {features.map((feature) => (
+            <button
+              className="pathway-card"
+              key={feature.title}
+              onClick={() => onOpenChat(feature.prompt)}
+            >
+              <span className="pathway-icon">{feature.icon}</span>
+              <h3>{feature.title}</h3>
+              <p>{feature.description}</p>
+              <span className="card-action">Explore track &rarr;</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="dashboard-editorial-grid">
+          <div className="editorial-card callout-card">
+            <span className="card-kicker">✦ IMMEDIATE NEXT STEP</span>
+            <h3>Start with an open conversation</h3>
+            <p>
+              Share your target roles, doubts, or competitive exam ambitions. Your AI counselor uses verified Indian data to outline actionable next steps.
+            </p>
+            <button
+              className="action-button-primary"
+              onClick={() =>
+                onOpenChat(
+                  "Help me understand my strengths and explore suitable career options after my degree in India."
+                )
+              }
+            >
+              Talk to AI Counselor &rarr;
+            </button>
+          </div>
+
+          <div className="editorial-card reminder-card">
+            <span className="card-kicker">💡 COUNSELOR ADVICE</span>
+            <h3>Your journey, your timeline</h3>
+            <p>
+              Great careers are built systematically over quarters, not overnight. Focus on practical projects, core fundamentals, and verified eligibility requirements.
+            </p>
+          </div>
+        </div>
       </div>
     </section>
   );

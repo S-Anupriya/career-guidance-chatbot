@@ -18,12 +18,28 @@ def test_full_pipeline():
     conn.commit()
     conn.close()
 
+    # Test rejected weak password
+    weak_pw_resp = client.post(
+        "/auth/register",
+        json={"name": "Weak User", "email": "weak@example.com", "password": "weak"}
+    )
+    assert weak_pw_resp.status_code in (400, 422)
+    print("✓ Weak password rejection verified")
+
+    # Test rejected disposable email
+    fake_mail_resp = client.post(
+        "/auth/register",
+        json={"name": "Fake User", "email": "fake@tempmail.com", "password": "StrongPassword123!"}
+    )
+    assert fake_mail_resp.status_code in (400, 422)
+    print("✓ Disposable email rejection verified")
+
     reg_resp = client.post(
         "/auth/register",
         json={
             "name": "Ananya Sharma",
             "email": test_email,
-            "password": "StrongPassword123"
+            "password": "StrongPassword123!"
         }
     )
     assert reg_resp.status_code == 201, reg_resp.text
@@ -34,7 +50,7 @@ def test_full_pipeline():
         "/auth/login",
         json={
             "email": test_email,
-            "password": "StrongPassword123"
+            "password": "StrongPassword123!"
         }
     )
     assert login_resp.status_code == 200, login_resp.text
@@ -63,6 +79,23 @@ def test_full_pipeline():
     assert profile_data["graduation_year"] == 2026
     assert "Python" in profile_data["skills"]
     print("✓ Student profile update passed")
+
+    # 3b. Verify profile persistence on re-login (Fix verification)
+    relogin_resp = client.post(
+        "/auth/login",
+        json={
+            "email": test_email,
+            "password": "StrongPassword123!"
+        }
+    )
+    assert relogin_resp.status_code == 200, relogin_resp.text
+    relogin_student = relogin_resp.json()["student"]
+    assert relogin_student["course"] == "BCA", f"Expected BCA, got {relogin_student.get('course')}"
+    assert relogin_student["institution"] == "East Point College, Bangalore"
+    assert relogin_student["graduation_year"] == 2026
+    assert "Python" in relogin_student["skills"]
+    assert "Artificial Intelligence" in relogin_student["interests"]
+    print("✓ Student profile persists and returns on re-login verified")
 
     # 4. Check /auth/me
     me_resp = client.get("/auth/me", headers=headers)
