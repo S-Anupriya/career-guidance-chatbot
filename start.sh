@@ -91,29 +91,36 @@ if ! "$PYTHON_BIN" -c "import fastapi, uvicorn, pwdlib, jwt" >/dev/null 2>&1; th
     "$PIP_BIN" install -r "$BACKEND_DIR/requirements.txt"
 fi
 
-if curl -s --connect-timeout 1 http://127.0.0.1:8000/health >/dev/null 2>&1 || curl -s --connect-timeout 1 http://localhost:8000/health >/dev/null 2>&1; then
-    echo "✓ FastAPI backend already running."
-else
-    echo "➜ Launching FastAPI backend on port 8000 (0.0.0.0)..."
-    "$PYTHON_BIN" -m uvicorn main:app --host 0.0.0.0 --port 8000 --app-dir "$BACKEND_DIR" > "$BACKEND_DIR/backend.log" 2>&1 &
-    PIDS+=("$!")
+echo "➜ Launching FastAPI backend with dynamic port discovery..."
+rm -f "$BACKEND_DIR/.active_port"
+(cd "$BACKEND_DIR" && "$PYTHON_BIN" run.py > "$BACKEND_DIR/backend.log" 2>&1) &
+PIDS+=("$!")
 
-    # Verify backend health
-    BACKEND_HEALTHY=0
-    for i in {1..20}; do
-        if curl -s --connect-timeout 1 http://127.0.0.1:8000/health >/dev/null 2>&1 || curl -s --connect-timeout 1 http://localhost:8000/health >/dev/null 2>&1; then
-            BACKEND_HEALTHY=1
-            break
-        fi
-        sleep 0.5
-    done
-
-    if [ "$BACKEND_HEALTHY" -eq 1 ]; then
-        echo "✓ FastAPI backend ready."
-    else
-        echo "⚠ FastAPI backend starting up. Check $BACKEND_DIR/backend.log:"
-        tail -n 15 "$BACKEND_DIR/backend.log" 2>/dev/null || true
+# Wait for .active_port to be written
+BACKEND_PORT=8000
+for i in {1..20}; do
+    if [ -f "$BACKEND_DIR/.active_port" ]; then
+        BACKEND_PORT=$(cat "$BACKEND_DIR/.active_port" 2>/dev/null || echo "8000")
+        break
     fi
+    sleep 0.25
+done
+
+# Verify backend health on dynamic port
+BACKEND_HEALTHY=0
+for i in {1..20}; do
+    if curl -s --connect-timeout 1 "http://127.0.0.1:$BACKEND_PORT/health" >/dev/null 2>&1; then
+        BACKEND_HEALTHY=1
+        break
+    fi
+    sleep 0.5
+done
+
+if [ "$BACKEND_HEALTHY" -eq 1 ]; then
+    echo "✓ FastAPI backend dynamically ready on port $BACKEND_PORT."
+else
+    echo "⚠ FastAPI backend starting up. Check $BACKEND_DIR/backend.log:"
+    tail -n 15 "$BACKEND_DIR/backend.log" 2>/dev/null || true
 fi
 
 # 3. Check and Setup Frontend Dependencies

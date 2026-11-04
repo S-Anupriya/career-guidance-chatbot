@@ -373,5 +373,3 @@ def chat_endpoint(
         )
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"AI model connection failed: {str(e)}")
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=f"AI model connection failed: {str(e)}")

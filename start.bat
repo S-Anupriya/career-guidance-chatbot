@@ -93,29 +93,29 @@ REM 4. Launch Backend and Frontend
 echo.
 echo [4/4] Launching CareerPath AI services...
 
-curl -s --connect-timeout 1 http://127.0.0.1:8000/health >nul 2>&1
-if %ERRORLEVEL% EQU 0 (
-    echo [OK] FastAPI backend is already running on http://127.0.0.1:8000.
-) else (
-    echo Starting FastAPI backend on http://127.0.0.1:8000...
-    start "CareerPath AI - Backend" cmd /c "cd /d "%BACKEND_DIR%" && "%BACKEND_DIR%\.venv\Scripts\python.exe" -m uvicorn main:app --host 0.0.0.0 --port 8000 || pause"
-    
-    REM Wait up to 10 seconds for backend to become healthy
-    set "BACKEND_READY=0"
-    for /l %%i in (1,1,10) do (
-        curl -s --connect-timeout 1 http://127.0.0.1:8000/health >nul 2>&1
+echo Starting FastAPI backend with dynamic port discovery...
+del /f /q "%BACKEND_DIR%\.active_port" >nul 2>&1
+start "CareerPath AI - Backend" cmd /c "cd /d "%BACKEND_DIR%" && "%BACKEND_DIR%\.venv\Scripts\python.exe" run.py || pause"
+
+REM Wait up to 10 seconds for backend to become healthy
+set "BACKEND_READY=0"
+set "DYNAMIC_PORT=8000"
+for /l %%i in (1,1,10) do (
+    if exist "%BACKEND_DIR%\.active_port" (
+        set /p DYNAMIC_PORT=<"%BACKEND_DIR%\.active_port"
+        curl -s --connect-timeout 1 http://127.0.0.1:!DYNAMIC_PORT!/health >nul 2>&1
         if !ERRORLEVEL! EQU 0 (
             set "BACKEND_READY=1"
             goto :backend_ready
         )
-        timeout /t 1 /nobreak >nul
     )
+    timeout /t 1 /nobreak >nul
+)
 :backend_ready
-    if "!BACKEND_READY!"=="1" (
-        echo [OK] FastAPI backend ready.
-    ) else (
-        echo [NOTE] FastAPI backend is initializing...
-    )
+if "!BACKEND_READY!"=="1" (
+    echo [OK] FastAPI backend dynamically ready on port !DYNAMIC_PORT!.
+) else (
+    echo [NOTE] FastAPI backend is initializing...
 )
 
 REM Free port 5173 if a previous orphaned instance was left running
