@@ -12,20 +12,6 @@ const spoken = ds =>
     ? `${(ds / 10).toFixed(1)} seconds`
     : `${Math.floor(ds / 600)} minutes ${((ds % 600) / 10).toFixed(1)} seconds`;
 
-function useReducedMotion() {
-  const [reduce, setReduce] = useState(() =>
-    typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches || false
-  );
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return;
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const onChange = () => setReduce(mq.matches);
-    mq.addEventListener?.('change', onChange);
-    return () => mq.removeEventListener?.('change', onChange);
-  }, []);
-  return reduce;
-}
-
 export default function ThoughtLine({
   label = 'Thinking…',
   doneLabel = '',
@@ -36,11 +22,7 @@ export default function ThoughtLine({
   collapseOnSettle = true,
   color = 'currentColor',
   glyphColor = '',
-  fontSize = 16,
-  shimmer = true,
-  shimmerDuration = 1.8,
-  settleDuration = 350,
-  settleBlur = 2,
+  fontSize = 13.5,
   working = true,
   settleAfter = 0,
   elapsed,
@@ -49,22 +31,15 @@ export default function ThoughtLine({
   className = '',
   style
 }) {
-  const reduce = useReducedMotion();
   const [autoSettled, setAutoSettled] = useState(false);
   const [open, setOpen] = useState(true);
   const isWorking = working && !autoSettled;
-  const doneText = doneLabel || (showTimer ? 'Thought for' : 'Done thinking');
+  const doneText = doneLabel || (showTimer ? 'Analysis complete' : 'Done thinking');
   const hasTrace = steps.length > 0;
-  const sheen = shimmer && !reduce;
 
   const glyphRef = useRef(null);
-  const breathRef = useRef(null);
   const timerRef = useRef(null);
-  const stackRef = useRef(null);
-  const workRef = useRef(null);
-  const doneRef = useRef(null);
   const dsRef = useRef(0);
-  const prevWorking = useRef(isWorking);
   const latest = useRef({});
   latest.current = { onSettle };
   const [announce, setAnnounce] = useState(label);
@@ -81,9 +56,9 @@ export default function ThoughtLine({
   useEffect(() => {
     const glyphEl = glyphRef.current;
     if (!glyphEl) return;
-    glyphEl.style.transition = `opacity ${settleDuration}ms ease`;
+    glyphEl.style.transition = `opacity 250ms ease`;
     glyphEl.style.opacity = isWorking ? '1' : `${GLYPH_DONE}`;
-  }, [isWorking, settleDuration]);
+  }, [isWorking]);
 
   const paint = ds => {
     dsRef.current = ds;
@@ -106,29 +81,6 @@ export default function ThoughtLine({
     return () => clearInterval(id);
   }, [isWorking, elapsed, settleAfter]);
 
-  useLayoutEffect(() => {
-    const t = timerRef.current;
-    const stack = stackRef.current;
-    if (!t || !stack) return undefined;
-    const place = glide => {
-      const active = isWorking ? workRef.current : doneRef.current;
-      if (!active) return;
-      const shift = active.offsetWidth - stack.offsetWidth;
-      if (!glide) t.style.transition = 'none';
-      t.style.transform = `translateX(${shift}px)`;
-      if (!glide) {
-        void t.offsetWidth;
-        t.style.transition = '';
-      }
-    };
-    place(prevWorking.current !== isWorking);
-    prevWorking.current = isWorking;
-    const ro = new ResizeObserver(() => place(false));
-    if (workRef.current) ro.observe(workRef.current);
-    if (doneRef.current) ro.observe(doneRef.current);
-    return () => ro.disconnect();
-  }, [isWorking, label, doneText, fontSize, showTimer]);
-
   useEffect(() => {
     if (isWorking) {
       setAnnounce(label);
@@ -139,6 +91,10 @@ export default function ThoughtLine({
   }, [isWorking, doneText, label, showTimer]);
 
   const toggle = hasTrace && collapsible;
+  const currentLabelText = isWorking
+    ? (renderLabel ? renderLabel(label, true) : label)
+    : (renderLabel ? renderLabel(doneText, false) : doneText);
+
   const head = (
     <>
       {glyph !== 'none' ? (
@@ -155,18 +111,9 @@ export default function ThoughtLine({
           )}
         </span>
       ) : null}
-      <span ref={stackRef} className="thought-line__label" aria-hidden="true">
-        <span ref={workRef} className="thought-line__text" data-active={isWorking ? '' : undefined}>
-          <span ref={breathRef} className="thought-line__breath" data-shimmer={sheen ? '' : undefined}>
-            {renderLabel ? renderLabel(label, true) : label}
-          </span>
-        </span>
-        <span
-          ref={doneRef}
-          className="thought-line__text thought-line__text--done"
-          data-active={isWorking ? undefined : ''}
-        >
-          {renderLabel ? renderLabel(doneText, false) : doneText}
+      <span className="thought-line__label" aria-hidden="true">
+        <span className="thought-line__breath">
+          {currentLabelText}
         </span>
       </span>
       {showTimer ? (
@@ -181,7 +128,7 @@ export default function ThoughtLine({
           </svg>
         </span>
       ) : null}
-      <span className="thought-line__sr" role="status">
+      <span className="thought-line__sr" aria-live="polite">
         {announce}
       </span>
     </>
@@ -196,9 +143,6 @@ export default function ThoughtLine({
         '--tl-font': `${fontSize}px`,
         '--tl-color': color,
         '--tl-glyph': glyphColor || color,
-        '--tl-settle': `${settleDuration}ms`,
-        '--tl-blur': `${settleBlur}px`,
-        '--tl-shimmer': `${shimmerDuration}s`,
         ...style
       }}
     >

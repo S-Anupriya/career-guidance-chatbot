@@ -2,18 +2,18 @@
 
 # CareerPath AI (Future Forge)
 
-**An intelligent, privacy-first career guidance platform with verified Indian benchmarks, student profile personalization, and real-time token streaming.**
+**An authoritative, privacy-first career advisory platform engineered with verified Indian compensation benchmarks, academic profile personalization, and real-time streaming inference.**
 
-*FastAPI · SQLite · React 19 + TypeScript · Local Ollama LLM · Curated RAG · Zero Cloud Dependencies*
+*FastAPI · Python 3.14 · SQLite (WAL) · React 19 + TypeScript · Local Ollama LLM · Editorial Anti-Slop Design*
 
 <br />
 
 <!-- Hero Screenshot -->
-<img src="assets/dashboard.png" alt="CareerPath AI Dashboard" width="920" />
+<img src="assets/dashboard.png" alt="CareerPath AI Candidate Dossier (Nocturne)" width="920" />
 
 <br />
 
-[Features](#features) · [Interface Gallery](#interface-gallery) · [Comparison](#why-careerpath-ai) · [Architecture](#architecture) · [Quick Start](#quick-start) · [macOS Guide](#macos-setup-guide) · [Windows Guide](#windows-setup-guide) · [Troubleshooting](#troubleshooting) · [Project Structure](#project-structure)
+[Features](#features) · [Interface Gallery](#interface-gallery) · [Why CareerPath AI](#why-careerpath-ai) · [Architecture](#architecture) · [Quick Start](#quick-start) · [macOS & Linux](#macos--linux-setup) · [Windows Guide](#windows-setup-guide) · [Troubleshooting](#troubleshooting) · [Project Structure](#project-structure)
 
 </div>
 
@@ -21,20 +21,21 @@
 
 ## Features
 
-* **Argon2id Cryptographic Authentication**: Industrial-grade password hashing with Argon2id and JWT bearer token sessions. Plaintext passwords are never stored.
-* **Password Hardening & Disposable Email Defense**: Enforces password complexity (minimum 8 characters, mixed case, numbers, and symbols) and automatically detects and blocks temporary/disposable email domains.
-* **Persistent Student Profiles**: Stores degree, institution, graduation timeline, technical skills, interests, and target domains in SQLite. Seamlessly restored upon login and continuously synced with the LLM context.
-* **Student Career Dashboard**: Personalized command center displaying academic status, registered skills, curated career pathway shortcuts, and contextual counselor advice.
-* **Real-Time Multi-Step Reasoning (`ThoughtLine`)**: Live visual thinking indicator in assistant chat bubbles featuring active timer telemetry, multi-stage status indicators, and luminous glow effects.
-* **Ambient 3D WebGL Background (`GhostFibers`) & Liquid Glass UI**: GPU-accelerated interactive particle fibers flowing beneath high-contrast, liquid glass cards and controls.
-* **Dual Obsidian Dark & Editorial Light Themes**: Fully responsive dual-theme design system with custom CSS variables and persistent theme preference in `localStorage`.
-* **Profile-Connected AI Personalization**: Injects student background (degree, year, skill stack, interests) directly into counselor prompts for hyper-targeted, context-aware roadmaps.
-* **Persistent SQLite Conversation Threads**: Multi-session conversation management with automatic thread naming, user query storage, streaming response accumulation, and cascade deletion.
-* **Grounded Indian Career Benchmarks**: Integrates factual data from ICAI campus placements, 7th Pay Commission pay scales, NIMCET NIT MCA statistics, and Indian tech hiring tiers (mass service firms, product startups, and GCCs).
-* **100% Local and Free Inference**: Runs entirely on your personal machine through Ollama (Gemma, Qwen, or Llama). Zero subscriptions, zero telemetry, and complete privacy.
-* **Auto-Discovery Model Binding**: Automatically inspects the local Ollama daemon and binds to the active model without hardcoded configuration.
-* **Fluid Token Streaming**: Streams responses directly to the client token-by-token with smooth animation and instant markdown table rendering.
-* **Single Command Startup**: Unified cross-platform launchers (`start.sh` for macOS/Linux, `start.bat` for Windows) that boot Ollama, the FastAPI backend, and the React frontend simultaneously.
+* **Human-Crafted Editorial Design System**: Zero "AI slop" templates. Replaces generic purple-blue gradients, bouncy cards, and decorative frosted blur with an intentional collegiate design system inspired by academic presses (*Stripe Press*, *The Atlantic*).
+* **Distinct Typographic Hierarchy**: Pairs variable optical-size serif [**`Fraunces`**](https://fonts.google.com/specimen/Fraunces) for display headlines with [**`Plus Jakarta Sans`**](https://fonts.google.com/specimen/Plus+Jakarta+Sans) for body text and [**`JetBrains Mono`**](https://fonts.google.com/specimen/JetBrains+Mono) with tabular figures for exact CTC compensation brackets.
+* **Asymmetric Editorial Bento Grid**: Strategic 2-tier bento architecture featuring a dominant Degree-to-Industry Trajectory Matrix, 2025–26 Indian Fresher CTC Index, Competitive Exam Roadmaps, and a Portfolio Skill Gap Audit.
+* **Collegiate Candidate Docket**: Formats student credentials into an official institutional verification docket with verified degree badges, institution enrollment, and skill tags.
+* **Dual Curated Themes (Light Paper & Nocturne Slate)**:
+  - **Light Paper**: Warm unbleached linen and bone paper (`#fbf8f3`, `#f4f0e6`) with rich terracotta earth (`#9e3b1b`) and warm amber ochre (`#b87d28`).
+  - **Nocturne Slate**: Deep warm graphite and mineral slate (`#121417`, `#191c21`) with warm terracotta flare (`#e07a5f`) and golden saffron (`#e09f3e`).
+* **Argon2id Cryptographic Security**: State-of-the-art password protection using Argon2id (RFC 9106 winner of the Password Hashing Competition) and JWT bearer authentication.
+* **Disposable Email & Password Policy Defense**: Hardens student registries by enforcing strict password complexity rules and proactively blocking disposable/temporary mailbox domains.
+* **Live AI Reasoning Telemetry (`ThoughtLine`)**: Real-time thinking indicator in counselor bubbles displaying live phase transitions, time elapsed telemetry, and non-blocking status steps.
+* **Persistent SQLite Conversation Threads**: Multi-session career counseling with automated thread naming, message history persistence, and cascade deletion.
+* **Grounded Indian Career Intelligence**: Curated benchmarks covering ICAI placement cycles, central government pay matrices, NIMCET NIT MCA cutoffs, and Indian tier 1/2/3 campus placement realities.
+* **100% Local, Private & Free Inference**: Runs entirely on your personal machine via Ollama (Gemma 2B, Qwen 2.5, or Llama 3). Zero API subscriptions, zero telemetry, and total privacy.
+* **Fluid Token-by-Token Streaming**: Direct chunked transfer stream (`Transfer-Encoding: chunked`) delivering real-time responses with structured markdown tables.
+* **Automated Single-Command Orchestration**: Native launchers (`start.sh` for macOS/Linux, `start.bat` for Windows) that boot Ollama, the FastAPI backend, and the Vite development server simultaneously.
 
 ---
 
@@ -42,31 +43,45 @@
 
 <div align="center">
 
-### Liquid Glass Authentication
-*Clean login and registration interface with password security policy enforcement and real-time WebGL backdrop.*
+### Candidate Dossier & Strategic Pathways (Nocturne Dark)
+*Asymmetric 2-tier bento architecture displaying student credentials, fresher CTC index, and trajectory matrices.*
 <br />
-<img src="assets/login.png" alt="CareerPath AI Login" width="860" />
+<img src="assets/dashboard.png" alt="CareerPath AI Candidate Dossier (Dark)" width="880" />
 
 <br /><br />
 
-### Live AI Thinking Indicator (`ThoughtLine`)
-*Multi-step reasoning telemetry displaying live phase transitions and execution timing during generation.*
+### Candidate Dossier & Strategic Pathways (Editorial Light Paper)
+*Warm unbleached linen paper aesthetic with Fraunces serif typography and tactile card surfaces.*
 <br />
-<img src="assets/ai_thinking.png" alt="CareerPath AI Multi-Step Thinking Indicator" width="860" />
+<img src="assets/dashboard_light.png" alt="CareerPath AI Candidate Dossier (Light)" width="880" />
 
 <br /><br />
 
-### Obsidian Dark AI Counseling
-*Streamed personalized advice, salary benchmarks in INR, and structured preparation timelines.*
+### Institutional Candidate Registry & Authentication
+*Secure portal access with Argon2id cryptographic protection and real-time password compliance verification.*
 <br />
-<img src="assets/chat_dark.png" alt="CareerPath AI Dark Chat" width="860" />
+<img src="assets/login.png" alt="CareerPath AI Authentication" width="880" />
 
 <br /><br />
 
-### Editorial Light Theme
-*High-contrast light mode with clean typography and liquid glass elements.*
+### Live AI Reasoning Telemetry (`ThoughtLine`)
+*Multi-stage inference telemetry displaying active synthesis phases and elapsed timing.*
 <br />
-<img src="assets/chat_light.png" alt="CareerPath AI Light Chat" width="860" />
+<img src="assets/ai_thinking.png" alt="CareerPath AI Multi-Step Reasoning" width="880" />
+
+<br /><br />
+
+### Nocturne Interactive Advisory Session
+*Real-time streamed consultation detailing NIMCET, GATE, CAT, and SSC CGL preparation roadmaps.*
+<br />
+<img src="assets/chat_dark.png" alt="CareerPath AI Dark Chat" width="880" />
+
+<br /><br />
+
+### Editorial Light Interactive Advisory Session
+*High-contrast structured compensation tables and milestone breakdowns formatted for daylight readability.*
+<br />
+<img src="assets/chat_light.png" alt="CareerPath AI Light Chat" width="880" />
 
 </div>
 
@@ -76,128 +91,89 @@
 
 | Dimension | Generic AI & Web Portals | CareerPath AI |
 |:---|:---|:---|
-| **Knowledge Base** | Western-centric examples or generic blogs | Grounded on Indian academic and industry benchmarks |
-| **Personalization** | Forgets who you are on every new session | Connects student profile (degree, skills, year) to AI |
-| **Security & Privacy** | Plaintext or basic MD5/SHA passwords | Industrial Argon2id hashing + disposable email defense |
-| **Conversation Storage**| Stored on remote corporate servers | 100% local SQLite database (`future_forge.db`) |
-| **Salary Data** | Inflated global estimates in USD | Realistic Indian INR (fresher CTC and in-hand breakdowns) |
-| **Thinking Feedback** | Static spinning dots or blank delays | Multi-step reasoning telemetry with `ThoughtLine` |
-| **Visual Design** | Flat generic templates | Liquid glass morphism with 3D WebGL `GhostFibers` |
-| **Data Presentation** | Monolithic walls of unformatted text | Clean, interactive markdown tables and structured roadmaps |
+| **Design Language** | AI-slop purple/blue gradients & generic cards | Human-crafted editorial typography & asymmetric bento grid |
+| **Knowledge Base** | Western-centric examples or superficial blogs | Grounded on verified Indian academic & CTC hiring data |
+| **Personalization** | Forgets user context on every refresh | Persists degree, institution, and skill stack in SQLite |
+| **Security & Privacy** | Plaintext or outdated MD5/SHA passwords | Industrial Argon2id hashing + disposable email defense |
+| **Data Storage** | Remote corporate cloud servers | 100% local SQLite database (`future_forge.db`) with WAL mode |
+| **Salary Data** | Inflated global estimates in USD | Realistic Indian INR (fresher base, variable, and CTC splits) |
+| **Reasoning Feedback** | Static spinners or blank latency | Live multi-stage reasoning telemetry with `ThoughtLine` |
 | **Execution** | Complex multi-terminal manual configuration | Single-command automated orchestration (`./start.sh` / `start.bat`) |
 
 ---
 
 ## Architecture
 
-The system is organized into a modular decoupled architecture:
+The platform operates as a modular, decoupled local architecture:
 
 ```text
 ┌────────────────────────────────────────────────────────┐
 │             React 19 + TypeScript Frontend             │
-│   (Vite · Dashboard · Profile · GhostFibers · Chats)   │
+│   (Vite 8 · Editorial Bento · ThoughtLine · Profiles)  │
 └───────────────────────────┬────────────────────────────┘
-                            │ REST / Event Streaming / JWT Bearer
+                            │ REST / Chunked Event Stream / JWT Bearer
                             ▼
 ┌────────────────────────────────────────────────────────┐
-│                   FastAPI Backend                      │
-│   (Auth Router · Conversations Router · RAG Pipeline)  │
+│              FastAPI Async Backend (Python 3.14)       │
+│   (Auth Router · Conversations Router · Context RAG)   │
 └───────┬───────────────────┬────────────────────┬───────┘
         │                   │                    │
         ▼                   ▼                    ▼
 ┌───────────────┐   ┌────────────────┐   ┌───────────────┐
-│ SQLite DB     │   │ Curated RAG    │   │ Local Ollama  │
-│ (Users, Chats,│   │ Knowledge Base │   │ (Gemma / Qwen)│
-│  Profiles)    │   │ (NIMCET, ICAI) │   │               │
+│ SQLite (WAL)  │   │ Curated RAG    │   │ Local Ollama  │
+│ Users, Chats, │   │ Knowledge Base │   │ (Gemma / Qwen)│
+│  Profiles     │   │ (NIMCET, CTC)  │   │               │
 └───────────────┘   └────────────────┘   └───────────────┘
 ```
 
-* **Frontend**: Built with React 19, TypeScript, and Vite. Features a liquid glass UI, student dashboard, profile editor, previous chat sidebar history, markdown table rendering, `ThoughtLine` live reasoning indicator, and 3D WebGL `GhostFibers` background.
-* **Backend**: Powered by FastAPI and Uvicorn. Implements Argon2id password security, JWT bearer authentication, profile management, conversation persistence, model resolution, and streaming generation.
-* **Database**: Local SQLite database storing student accounts, argon2-hashed credentials, profiles, conversation threads, and chat messages.
-* **RAG Layer**: Curated repository containing verified Indian compensation bands, exam timelines, and qualification criteria.
-* **Inference Engine**: Standard Ollama instance running locally on CPU or Apple Silicon/NVIDIA GPU.
+* **Frontend**: React 19.3, TypeScript 5.9, and Vite 8.3. Pure zero-runtime CSS variables, asymmetric bento layout, collegiate student docket, and dependency-free `ThoughtLine` reasoning component.
+* **Backend**: FastAPI 0.162+ with Uvicorn on Python 3.14. Argon2id password verification via `pwdlib`, PyJWT stateless session tokens, and streaming endpoint handlers.
+* **Database**: Local SQLite 3 operating with Write-Ahead Logging (`PRAGMA journal_mode=WAL`) and cascading foreign key integrity.
+* **Inference**: Local Ollama instance serving Gemma, Qwen, or Llama models with zero cloud dependency.
 
 ---
 
 ## Quick Start
 
-### 1. macOS & Linux (Automated)
+### macOS & Linux Setup
 
-Open Terminal in the project root and run:
-
-```bash
-chmod +x start.sh
-./start.sh
-```
-
-The script will automatically check Ollama, pull a model if missing, set up Python dependencies, install frontend packages, and launch both servers.
-
-Access the web interface at: **http://localhost:5173**
-
----
-
-### 2. Windows (Automated)
-
-Open Command Prompt in the project root or simply **double-click `start.bat`**:
-
-```cmd
-start.bat
-```
-
-The batch script will verify Ollama, set up Python and Node dependencies automatically, and open `http://localhost:5173` in your default browser.
-
----
-
-## macOS Setup Guide
-
-If running on Apple Silicon (M1/M2/M3/M4) or Intel Mac:
-
-1. **Install Ollama**:
-   Download and install the macOS application from [ollama.com/download](https://ollama.com/download). Launch Ollama from your Applications folder (the Ollama icon appears in the top menu bar).
-
-2. **Download an AI Model**:
-   Open Terminal and run:
+1. Open your terminal in the repository root:
    ```bash
-   ollama pull gemma:2b
-   ```
-   *(or `ollama pull qwen2.5:3b`)*
-
-3. **Start the Application**:
-   Navigate to the project folder and run:
-   ```bash
+   chmod +x start.sh
    ./start.sh
    ```
+2. The launcher automatically verifies Ollama, downloads a model if needed, configures the Python virtual environment, installs frontend dependencies, and boots both servers.
+3. Access the application in your browser at: **http://localhost:5173**
 
 ---
 
-## Windows Setup Guide
+### Windows Setup Guide
 
-1. **Prerequisites**:
-   * Install Python 3.10+ from [python.org](https://www.python.org/downloads/) *(make sure to check "Add Python to PATH" during installation)*.
-   * Install Node.js 18+ from [nodejs.org](https://nodejs.org/).
-   * Install Ollama for Windows from [ollama.com/download](https://ollama.com/download).
-
-2. **Download an AI Model**:
-   Open Command Prompt and run:
+1. Open Command Prompt in the repository folder or simply **double-click `start.bat`**:
    ```cmd
-   ollama pull gemma:2b
+   start.bat
    ```
-
-3. **Start the Application**:
-   Double-click `start.bat` in the project root folder.
+2. The batch script verifies Python and Node.js, ensures dependencies are installed, launches the FastAPI backend on port 8000, and opens `http://localhost:5173` automatically.
 
 ---
 
 ## Troubleshooting
 
-| Issue | Likely Cause | Resolution |
-|:---|:---|:---|
-| **"AI model connection failed"** | Ollama daemon is not active. | Run `ollama serve` or open the Ollama app. |
-| **"No model found"** | No LLM downloaded in Ollama. | Run `ollama list`. If empty, download one with `ollama pull gemma:2b`. |
-| **Port 8000 or 5173 in use** | A previous instance was not terminated. | Free ports by running `lsof -ti:8000,5173 \| xargs kill -9`. |
-| **High inference latency** | Model parameter size exceeds available RAM. | Switch to a smaller quantized model such as `gemma:2b` or `qwen2.5:3b`. |
-| **CORS or Auth error** | Frontend port mismatch. | Ensure the client runs on `localhost:5173` or `localhost:3000`. |
+### Windows: `Failed to fetch` on Login / Register
+* Make sure the backend terminal window is open and reports:
+  ```
+  INFO: Application startup complete.
+  INFO: Uvicorn running on http://127.0.0.1:8000
+  ```
+* If Python packages were previously interrupted, run:
+  ```cmd
+  cd backend
+  .venv\Scripts\pip install -r requirements.txt
+  .venv\Scripts\python -m uvicorn main:app --host 127.0.0.1 --port 8000
+  ```
+
+### Windows: Port 5173 Already in Use
+* If an orphaned Node process was left running, `start.bat` automatically terminates any conflicting process on port 5173 to ensure clean binding.
 
 ---
 
@@ -205,64 +181,33 @@ If running on Apple Silicon (M1/M2/M3/M4) or Intel Mac:
 
 ```text
 career-guidance-chatbot/
+├── assets/                  # High-resolution screenshots for documentation
+│   ├── dashboard.png        # Candidate Dossier (Nocturne)
+│   ├── dashboard_light.png  # Candidate Dossier (Editorial Light)
+│   ├── login.png            # Candidate Registry & Authentication
+│   ├── ai_thinking.png      # Real-Time Reasoning Telemetry
+│   ├── chat_dark.png        # Nocturne Advisory Consultation
+│   └── chat_light.png       # Editorial Light Advisory Consultation
 ├── backend/
-│   ├── data/
-│   │   ├── india_career_knowledge.json  # Curated Indian career benchmarks
-│   │   └── future_forge.db              # SQLite database (auto-created)
-│   ├── auth.py                          # Argon2id password security, JWT login, and profile API
-│   ├── conversations.py                 # Chat history and conversation management
-│   ├── database.py                      # Database schema and table initialization
-│   ├── main.py                          # FastAPI endpoints, streaming, and model discovery
-│   ├── rag.py                           # Semantic search and reasoning filter
-│   ├── requirements.txt                 # Backend Python dependencies
-│   ├── test_app.py                      # Automated test suite for auth, chats, and RAG
-│   └── .env.example                     # Environment configuration template
+│   ├── auth.py              # Argon2id password hashing, validation & JWT
+│   ├── conversations.py     # Conversation threads CRUD endpoints
+│   ├── database.py          # SQLite schema, WAL mode, migrations
+│   ├── main.py              # FastAPI app, streaming chat & model binding
+│   ├── requirements.txt     # Locked production dependencies
+│   └── test_app.py          # 10/10 automated verification test suite
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── GhostFibers.jsx          # WebGL 3D ambient fiber particle background
-│   │   │   ├── GhostFibers.css          # Full-bleed WebGL viewport canvas styling
-│   │   │   ├── ThoughtLine.jsx          # Live multi-step reasoning indicator & timer
-│   │   │   └── ThoughtLine.css          # Monospace badge & luminous glow animations
-│   │   ├── App.tsx                      # Main app shell, navigation, theme toggle, and stream reader
-│   │   ├── App.css                      # Liquid glass design system and widescreen styling
-│   │   ├── AuthScreen.tsx               # Student registration & login with password hardening
-│   │   ├── StudentDashboard.tsx         # Personalized career overview & pathways
-│   │   ├── StudentProfile.tsx           # Profile editor (course, year, skills, domains)
-│   │   ├── MarkdownMessage.tsx          # Markdown and table renderer
-│   │   ├── main.tsx                     # React root mount
-│   │   └── index.css                    # Viewport reset styles
-│   ├── index.html                       # HTML entry point
-│   ├── package.json                     # Frontend dependencies
-│   └── vite.config.ts                   # Vite configuration
-├── assets/                              # High-resolution screenshots and UI documentation
-│   ├── dashboard.png                    # Student career dashboard & command center
-│   ├── login.png                        # Liquid glass login interface
-│   ├── ai_thinking.png                  # Multi-step live reasoning indicator
-│   ├── chat_dark.png                    # Obsidian Dark chat interface
-│   └── chat_light.png                   # Editorial Light theme interface
-├── start.sh                             # macOS and Linux launcher script
-├── start.bat                            # Windows double-click launcher script
-├── .gitignore                           # Git exclusion rules
-└── README.md                            # Comprehensive project documentation
+│   │   │   ├── ThoughtLine.jsx   # Live reasoning indicator (dependency-free)
+│   │   │   └── ThoughtLine.css   # Theme-aware styling & responsive layout
+│   │   ├── App.tsx          # Main application shell & consultation dossier
+│   │   ├── App.css          # Editorial design tokens, themes & bento grid
+│   │   ├── AuthScreen.tsx   # Collegiate student registration modal
+│   │   ├── StudentDashboard.tsx # Asymmetric bento dashboard & docket
+│   │   └── StudentProfile.tsx   # Academic profile editor
+│   ├── index.html           # Google Fonts preconnect (Fraunces, Plus Jakarta, JetBrains Mono)
+│   └── package.json         # React 19, TypeScript 5, Vite 8
+├── start.sh                 # macOS & Linux single-command launcher
+├── start.bat                # Windows single-command automated launcher
+└── README.md                # System documentation & interface showcase
 ```
-
----
-
-## Verification & Testing
-
-Verify full backend pipeline (Auth, Profiles, Conversations, Streaming):
-```bash
-python3 backend/test_app.py
-```
-
-Verify frontend TypeScript build:
-```bash
-cd frontend && npm run build
-```
-
----
-
-## License
-
-Academic and educational open-source project. Developed for student career counseling and curriculum guidance.
