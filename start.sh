@@ -145,4 +145,5 @@ elif command -v xdg-open >/dev/null 2>&1; then
 fi
 
 cd "$FRONTEND_DIR"
-npm run dev -- --host 127.0.0.1 --port 5173
+CI=true npm run dev -- --host 0.0.0.0 --port 5173 < /dev/null
+
