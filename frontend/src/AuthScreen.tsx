@@ -304,13 +304,6 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
             {loading ? "Verifying..." : mode === "login" ? "Sign In to Dossier →" : "Register Candidate Account →"}
           </button>
         </form>
-
-        <footer className="auth-footer-bar">
-          <span className="footer-security-text">
-            Argon2id Hash Protection · Local SQLite Persistence
-          </span>
-          <span className="footer-edition-text">CareerPath India · Pan-India Academic Standards</span>
-        </footer>
       </section>
     </main>
   );
