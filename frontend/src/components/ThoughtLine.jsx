@@ -1,13 +1,10 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { animate, useReducedMotion } from 'motion/react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowDown01Icon, SparklesIcon, Tick02Icon } from '@hugeicons/core-free-icons';
 import './ThoughtLine.css';
 
-const EASE_OUT = [0.23, 1, 0.32, 1];
-const EASE_IN_OUT = [0.77, 0, 0.175, 1];
 const GLYPH_DONE = 0.55;
 const EMPTY_STEPS = [];
 
@@ -16,6 +13,20 @@ const spoken = ds =>
   ds < 600
     ? `${(ds / 10).toFixed(1)} seconds`
     : `${Math.floor(ds / 600)} minutes ${((ds % 600) / 10).toFixed(1)} seconds`;
+
+function useReducedMotion() {
+  const [reduce, setReduce] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches || false
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const onChange = () => setReduce(mq.matches);
+    mq.addEventListener?.('change', onChange);
+    return () => mq.removeEventListener?.('change', onChange);
+  }, []);
+  return reduce;
+}
 
 export default function ThoughtLine({
   label = 'Thinking…',
@@ -28,8 +39,6 @@ export default function ThoughtLine({
   color = 'currentColor',
   glyphColor = '',
   fontSize = 16,
-  breathPeriod = 1.6,
-  breathDepth = 0.45,
   shimmer = true,
   shimmerDuration = 1.8,
   settleDuration = 350,
@@ -48,9 +57,6 @@ export default function ThoughtLine({
   const isWorking = working && !autoSettled;
   const doneText = doneLabel || (showTimer ? 'Thought for' : 'Done thinking');
   const hasTrace = steps.length > 0;
-  const depth = reduce ? Math.min(breathDepth, 0.2) : breathDepth;
-  const period = reduce ? breathPeriod * 1.5 : breathPeriod;
-  const trough = 1 - depth;
   const sheen = shimmer && !reduce;
 
   const glyphRef = useRef(null);
@@ -68,6 +74,7 @@ export default function ThoughtLine({
   useEffect(() => {
     if (working) setAutoSettled(false);
   }, [working]);
+
   useEffect(() => {
     if (isWorking) setOpen(true);
     else if (collapseOnSettle) setOpen(false);
@@ -75,45 +82,16 @@ export default function ThoughtLine({
 
   useEffect(() => {
     const glyphEl = glyphRef.current;
-    const breathEl = breathRef.current;
-    if (!breathEl) return undefined;
-    const s = settleDuration / 1000;
-    const loop = (el, delay) =>
-      animate(el, { opacity: [trough, 1, trough] }, { duration: period, ease: EASE_IN_OUT, repeat: Infinity, delay });
-    let cancelled = false;
-    const running = [];
-    if (isWorking) {
-      if (depth > 0) {
-        if (sheen) running.push(animate(breathEl, { opacity: 1 }, { duration: 0.2, ease: EASE_OUT }));
-        if (glyphEl) {
-          const lead = animate(glyphEl, { opacity: trough }, { duration: 0.2, ease: EASE_OUT });
-          running.push(lead);
-          lead.then(() => {
-            if (cancelled) return;
-            running.push(loop(glyphEl, 0));
-            if (!sheen) running.push(loop(breathEl, 0.14));
-          });
-        } else if (!sheen) {
-          running.push(loop(breathEl, 0.14));
-        }
-      } else {
-        if (glyphEl) running.push(animate(glyphEl, { opacity: 1 }, { duration: 0.2, ease: EASE_OUT }));
-        running.push(animate(breathEl, { opacity: 1 }, { duration: 0.2, ease: EASE_OUT }));
-      }
-    } else {
-      if (glyphEl) running.push(animate(glyphEl, { opacity: GLYPH_DONE }, { duration: s, ease: EASE_OUT }));
-      running.push(animate(breathEl, { opacity: 1 }, { duration: s, ease: EASE_OUT }));
-    }
-    return () => {
-      cancelled = true;
-      running.forEach(a => a.stop());
-    };
-  }, [isWorking, period, depth, trough, settleDuration, glyph, sheen]);
+    if (!glyphEl) return;
+    glyphEl.style.transition = `opacity ${settleDuration}ms ease`;
+    glyphEl.style.opacity = isWorking ? '1' : `${GLYPH_DONE}`;
+  }, [isWorking, settleDuration]);
 
   const paint = ds => {
     dsRef.current = ds;
     if (timerRef.current) timerRef.current.textContent = fmt(ds);
   };
+
   useLayoutEffect(() => {
     if (elapsed != null) {
       paint(Math.round(elapsed * 10));
@@ -160,8 +138,7 @@ export default function ThoughtLine({
     }
     setAnnounce(showTimer ? `${doneText} ${spoken(dsRef.current)}` : doneText);
     latest.current.onSettle?.(dsRef.current / 10);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isWorking]);
+  }, [isWorking, doneText, label, showTimer]);
 
   const toggle = hasTrace && collapsible;
   const head = (
@@ -264,4 +241,3 @@ export default function ThoughtLine({
     </div>
   );
 }
-
