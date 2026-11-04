@@ -74,27 +74,34 @@ if [ ! -f "$BACKEND_DIR/.venv/bin/uvicorn" ] && [ ! -f "$BACKEND_DIR/venv/bin/uv
     "$BACKEND_DIR/.venv/bin/pip" install -r "$BACKEND_DIR/requirements.txt"
 fi
 
-if [ -f "$BACKEND_DIR/.venv/bin/uvicorn" ]; then
-    UVICORN_BIN="$BACKEND_DIR/.venv/bin/uvicorn"
-    "$BACKEND_DIR/.venv/bin/pip" install -r "$BACKEND_DIR/requirements.txt" >/dev/null 2>&1 || true
-elif [ -f "$BACKEND_DIR/venv/bin/uvicorn" ]; then
-    UVICORN_BIN="$BACKEND_DIR/venv/bin/uvicorn"
-    "$BACKEND_DIR/venv/bin/pip" install -r "$BACKEND_DIR/requirements.txt" >/dev/null 2>&1 || true
+if [ -f "$BACKEND_DIR/.venv/bin/python" ]; then
+    PYTHON_BIN="$BACKEND_DIR/.venv/bin/python"
+    PIP_BIN="$BACKEND_DIR/.venv/bin/pip"
+elif [ -f "$BACKEND_DIR/venv/bin/python" ]; then
+    PYTHON_BIN="$BACKEND_DIR/venv/bin/python"
+    PIP_BIN="$BACKEND_DIR/venv/bin/pip"
 else
-    UVICORN_BIN="uvicorn"
+    PYTHON_BIN="python3"
+    PIP_BIN="pip3"
 fi
 
-if curl -s --connect-timeout 1 http://127.0.0.1:8000/health >/dev/null 2>&1; then
+# Ensure required libraries are importable
+if ! "$PYTHON_BIN" -c "import fastapi, uvicorn, pwdlib, jwt" >/dev/null 2>&1; then
+    echo "➜ Installing missing Python dependencies..."
+    "$PIP_BIN" install -r "$BACKEND_DIR/requirements.txt"
+fi
+
+if curl -s --connect-timeout 1 http://127.0.0.1:8000/health >/dev/null 2>&1 || curl -s --connect-timeout 1 http://localhost:8000/health >/dev/null 2>&1; then
     echo "✓ FastAPI backend already running."
 else
-    echo "➜ Launching FastAPI backend on http://127.0.0.1:8000..."
-    "$UVICORN_BIN" main:app --host 127.0.0.1 --port 8000 --app-dir "$BACKEND_DIR" >/dev/null 2>&1 &
+    echo "➜ Launching FastAPI backend on port 8000 (0.0.0.0)..."
+    "$PYTHON_BIN" -m uvicorn main:app --host 0.0.0.0 --port 8000 --app-dir "$BACKEND_DIR" > "$BACKEND_DIR/backend.log" 2>&1 &
     PIDS+=("$!")
 
     # Verify backend health
     BACKEND_HEALTHY=0
-    for i in {1..15}; do
-        if curl -s --connect-timeout 1 http://127.0.0.1:8000/health >/dev/null 2>&1; then
+    for i in {1..20}; do
+        if curl -s --connect-timeout 1 http://127.0.0.1:8000/health >/dev/null 2>&1 || curl -s --connect-timeout 1 http://localhost:8000/health >/dev/null 2>&1; then
             BACKEND_HEALTHY=1
             break
         fi
@@ -104,7 +111,8 @@ else
     if [ "$BACKEND_HEALTHY" -eq 1 ]; then
         echo "✓ FastAPI backend ready."
     else
-        echo "⚠ FastAPI backend starting up. Check http://127.0.0.1:8000/health"
+        echo "⚠ FastAPI backend starting up. Check $BACKEND_DIR/backend.log:"
+        tail -n 15 "$BACKEND_DIR/backend.log" 2>/dev/null || true
     fi
 fi
 

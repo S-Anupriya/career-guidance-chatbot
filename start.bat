@@ -98,7 +98,7 @@ if %ERRORLEVEL% EQU 0 (
     echo [OK] FastAPI backend is already running on http://127.0.0.1:8000.
 ) else (
     echo Starting FastAPI backend on http://127.0.0.1:8000...
-    start "CareerPath AI - Backend" cmd /c "cd /d "%BACKEND_DIR%" && "%BACKEND_DIR%\.venv\Scripts\python.exe" -m uvicorn main:app --host 127.0.0.1 --port 8000 || pause"
+    start "CareerPath AI - Backend" cmd /c "cd /d "%BACKEND_DIR%" && "%BACKEND_DIR%\.venv\Scripts\python.exe" -m uvicorn main:app --host 0.0.0.0 --port 8000 || pause"
     
     REM Wait up to 10 seconds for backend to become healthy
     set "BACKEND_READY=0"
