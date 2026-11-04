@@ -77,8 +77,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
     setLoading(true);
 
     try {
-      const endpoint =
-        mode === "register" ? "/auth/register" : "/auth/login";
+      const endpoint = mode === "register" ? "/auth/register" : "/auth/login";
 
       const body =
         mode === "register"
@@ -88,7 +87,7 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(body)
       });
 
       const data = await response.json();
@@ -101,16 +100,14 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
         setMode("login");
         setPassword("");
         setConfirmPassword("");
-        setSuccess("Account created successfully. Please sign in with your credentials.");
+        setSuccess("Candidate account registered successfully. Please sign in with your credentials.");
         return;
       }
 
       onAuthenticated(data.access_token, data.student);
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to connect to the server."
+        err instanceof Error ? err.message : "Unable to connect to the server."
       );
     } finally {
       setLoading(false);
@@ -120,284 +117,201 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
   return (
     <main className="auth-page">
       <section className="auth-card">
+        {/* Brand Insignia */}
         <div className="auth-brand">
-            <div className="brand-badge">✦</div>
-            <div>
-              <h2>CareerPath</h2>
-              <p className="brand-sub">Career Guidance AI</p>
-            </div>
+          <div className="brand-seal" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+              <line x1="12" y1="6" x2="16" y2="6" />
+              <line x1="12" y1="10" x2="16" y2="10" />
+            </svg>
           </div>
-
-          <div className="auth-heading">
-            <div className="auth-eyebrow">+ STUDENT ACCESS</div>
-            <h1>
-              {mode === "login" ? "Welcome back." : "Discover your future."}
-            </h1>
-            <p>
-              {mode === "login"
-                ? "Sign in to access your personalized career roadmaps and verified benchmarks."
-                : "Create your student account to unlock tailored guidance and career planning."}
-            </p>
+          <div className="brand-copy">
+            <h2 className="brand-title">CareerPath India</h2>
+            <p className="brand-sub">Institutional Advisory Registry</p>
           </div>
+        </div>
 
-          <div className="auth-tabs">
-            <button
-              type="button"
-              className={mode === "login" ? "selected" : ""}
-              onClick={() => {
-                setMode("login");
-                setError("");
-                setSuccess("");
-              }}
-            >
-              Sign In
-            </button>
+        {/* Heading Block */}
+        <div className="auth-heading">
+          <span className="auth-docket-tag">STUDENT PORTAL ACCESS</span>
+          <h1 className="auth-headline">
+            {mode === "login" ? "Access your advisory dossier." : "Register your candidate profile."}
+          </h1>
+          <p className="auth-subtext">
+            {mode === "login"
+              ? "Sign in to review saved roadmaps, salary benchmarks, and tailored career guidance."
+              : "Create an academic profile to receive verified recommendations tailored to your institution and degree."}
+          </p>
+        </div>
 
-            <button
-              type="button"
-              className={mode === "register" ? "selected" : ""}
-              onClick={() => {
-                setMode("register");
-                setError("");
-                setSuccess("");
-              }}
-            >
-              Create Account
-            </button>
-          </div>
+        {/* Auth Mode Tabs */}
+        <div className="auth-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === "login"}
+            className={mode === "login" ? "selected" : ""}
+            onClick={() => {
+              setMode("login");
+              setError("");
+              setSuccess("");
+            }}
+          >
+            Sign In
+          </button>
 
-          <form className="auth-form" onSubmit={handleSubmit}>
-            {mode === "register" && (
-              <label>
-                Full Name
-                <input
-                  type="text"
-                  placeholder="e.g. Ananya Sharma"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  minLength={2}
-                  maxLength={80}
-                  required
-                />
-              </label>
-            )}
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === "register"}
+            className={mode === "register" ? "selected" : ""}
+            onClick={() => {
+              setMode("register");
+              setError("");
+              setSuccess("");
+            }}
+          >
+            Create Account
+          </button>
+        </div>
 
-            <label>
-              Email Address
+        {/* Form */}
+        <form className="auth-form" onSubmit={handleSubmit}>
+          {mode === "register" && (
+            <label className="auth-field">
+              <span className="field-label">Candidate Full Name</span>
               <input
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                maxLength={254}
-                autoComplete="email"
+                type="text"
+                placeholder="e.g. Udayagiri Devayani"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                minLength={2}
+                maxLength={80}
                 required
+                className="auth-input"
               />
-              {isDisposableEmail && (
-                <span className="field-hint-error">
-                  <svg
-                    width="13"
-                    height="13"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "4px" }}
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                  Disposable email providers are not supported.
-                </span>
-              )}
             </label>
+          )}
 
-            <label>
-              Password
+          <label className="auth-field">
+            <span className="field-label">Institutional or Personal Email</span>
+            <input
+              type="email"
+              placeholder="e.g. student@eastpoint.ac.in"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              maxLength={254}
+              autoComplete="email"
+              required
+              className="auth-input"
+            />
+            {isDisposableEmail && (
+              <span className="field-hint-error">
+                Temporary or disposable email domains are not permitted.
+              </span>
+            )}
+          </label>
+
+          <label className="auth-field">
+            <span className="field-label">Password</span>
+            <div className="password-input-box">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder={
+                  mode === "register"
+                    ? "Minimum 8 chars with mixed case, number & symbol"
+                    : "Enter your account password"
+                }
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                minLength={8}
+                maxLength={128}
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
+                required
+                className="auth-input"
+              />
+              <button
+                type="button"
+                className="password-toggle-btn"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
+          </label>
+
+          {mode === "register" && (
+            <div className="password-rules-card">
+              <span className="rules-heading">Security Compliance Checklist:</span>
+              <div className="rules-grid">
+                <span className={`rule-item ${hasMinLength ? "passed" : ""}`}>
+                  <span className="rule-dot">•</span> 8+ Characters
+                </span>
+                <span className={`rule-item ${hasUppercase ? "passed" : ""}`}>
+                  <span className="rule-dot">•</span> Uppercase Letter (A–Z)
+                </span>
+                <span className={`rule-item ${hasLowercase ? "passed" : ""}`}>
+                  <span className="rule-dot">•</span> Lowercase Letter (a–z)
+                </span>
+                <span className={`rule-item ${hasNumber ? "passed" : ""}`}>
+                  <span className="rule-dot">•</span> Number (0–9)
+                </span>
+                <span className={`rule-item ${hasSpecial ? "passed" : ""}`}>
+                  <span className="rule-dot">•</span> Special Symbol (!@#$%)
+                </span>
+              </div>
+            </div>
+          )}
+
+          {mode === "register" && (
+            <label className="auth-field">
+              <span className="field-label">Confirm Password</span>
               <div className="password-input-box">
                 <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder={
-                    mode === "register"
-                      ? "8+ chars, upper, number, symbol"
-                      : "Enter your password"
-                  }
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Re-enter password to verify"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                   minLength={8}
                   maxLength={128}
-                  autoComplete={
-                    mode === "login" ? "current-password" : "new-password"
-                  }
+                  autoComplete="new-password"
                   required
+                  className="auth-input"
                 />
                 <button
                   type="button"
                   className="password-toggle-btn"
-                  onClick={() => setShowPassword(!showPassword)}
-                  title={showPassword ? "Hide password" : "Show password"}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                 >
-                  {showPassword ? (
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                      <line x1="1" y1="1" x2="23" y2="23" />
-                    </svg>
-                  ) : (
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                  )}
+                  {showConfirmPassword ? "Hide" : "Show"}
                 </button>
               </div>
             </label>
+          )}
 
-            {mode === "register" && (
-              <>
-                <div className="password-rules-box">
-                  <span className="rules-heading">Password Security Requirements:</span>
-                  <div className="rules-grid">
-                    <span className={`rule-item ${hasMinLength ? "passed" : ""}`}>
-                      {hasMinLength ? "✓" : "○"} 8+ Characters
-                    </span>
-                    <span className={`rule-item ${hasUppercase ? "passed" : ""}`}>
-                      {hasUppercase ? "✓" : "○"} Uppercase (A-Z)
-                    </span>
-                    <span className={`rule-item ${hasNumber ? "passed" : ""}`}>
-                      {hasNumber ? "✓" : "○"} Number (0-9)
-                    </span>
-                    <span className={`rule-item ${hasSpecial ? "passed" : ""}`}>
-                      {hasSpecial ? "✓" : "○"} Special Symbol
-                    </span>
-                  </div>
-                </div>
+          {error && <div className="auth-message error">{error}</div>}
+          {success && <div className="auth-message success">{success}</div>}
 
-                <label>
-                  Confirm Password
-                  <div className="password-input-box">
-                    <input
-                      type={showConfirmPassword ? "text" : "password"}
-                      placeholder="Re-enter your password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      minLength={8}
-                      maxLength={128}
-                      autoComplete="new-password"
-                      required
-                    />
-                    <button
-                      type="button"
-                      className="password-toggle-btn"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      title={showConfirmPassword ? "Hide password" : "Show password"}
-                      aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-                    >
-                      {showConfirmPassword ? (
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                          <line x1="1" y1="1" x2="23" y2="23" />
-                        </svg>
-                      ) : (
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                          <circle cx="12" cy="12" r="3" />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
-                </label>
-              </>
-            )}
+          <button
+            type="submit"
+            className="auth-submit-btn"
+            disabled={loading || (mode === "register" && (!isPasswordValid || isDisposableEmail))}
+          >
+            {loading ? "Verifying..." : mode === "login" ? "Sign In to Dossier →" : "Register Candidate Account →"}
+          </button>
+        </form>
 
-            {error && (
-              <div className="auth-message error" role="alert">
-                {error}
-              </div>
-            )}
-
-            {success && (
-              <div className="auth-message success" role="status">
-                {success}
-              </div>
-            )}
-
-            <button
-              className="auth-submit"
-              type="submit"
-              disabled={loading}
-            >
-              {loading
-                ? "Authenticating..."
-                : mode === "login"
-                  ? "Sign In to CareerPath →"
-                  : "Create Student Account →"}
-            </button>
-          </form>
-
-          <div className="auth-security-badge">
-            <span className="security-badge-inner">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{ display: "inline-block", verticalAlign: "-2px", marginRight: "6px" }}
-              >
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-              </svg>
-              Argon2id Cryptographic Password Protection
-            </span>
-          </div>
-
-          <p className="auth-footer">
-            India Edition · Grounded Career Intelligence
-          </p>
-        </section>
+        <footer className="auth-footer-bar">
+          <span className="footer-security-text">
+            Argon2id Hash Protection · Local SQLite Persistence
+          </span>
+          <span className="footer-edition-text">CareerPath India · Pan-India Academic Standards</span>
+        </footer>
+      </section>
     </main>
   );
 }

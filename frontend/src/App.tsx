@@ -5,7 +5,6 @@ import { AuthScreen } from "./AuthScreen";
 import { StudentDashboard } from "./StudentDashboard";
 import { StudentProfile } from "./StudentProfile";
 import ThoughtLine from "./components/ThoughtLine";
-import GhostFibers from "./components/GhostFibers";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
@@ -48,14 +47,14 @@ type Navigation = "dashboard" | "chat" | "salaries" | "exams" | "profile";
 
 function formatModelName(model: string): string {
   if (!model || model.toLowerCase().includes("no model") || model === "None") {
-    return "No Model Installed";
+    return "Offline (No Local Model)";
   }
 
   const lower = model.toLowerCase();
 
-  if (lower.includes("gemma")) return "Gemma · Local";
-  if (lower.includes("qwen")) return "Qwen · Local";
-  if (lower.includes("llama")) return "Llama · Local";
+  if (lower.includes("gemma")) return "Gemma 2B · Local";
+  if (lower.includes("qwen")) return "Qwen 2.5 · Local";
+  if (lower.includes("llama")) return "Llama 3 · Local";
 
   return model.split("/").pop()?.split(":")[0] || model;
 }
@@ -65,7 +64,7 @@ function App() {
   const [authChecked, setAuthChecked] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     const saved = localStorage.getItem("careerpath_theme");
-    return (saved === "light" || saved === "dark") ? saved : "dark";
+    return (saved === "light" || saved === "dark") ? saved : "light";
   });
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -151,32 +150,34 @@ function App() {
     }
   }, [student, fetchConversations]);
 
-  function handleAuthenticated(token: string, loggedInStudent: Student) {
+  // Scroll to bottom when messages update
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Handle successful login or registration
+  function handleAuthenticated(token: string, studentData: Student) {
     sessionStorage.setItem("future_forge_token", token);
-    setStudent(loggedInStudent);
-    setCurrentConversationId(null);
-    setMessages([]);
+    setStudent(studentData);
     setActiveNav("dashboard");
   }
 
+  // Logout
   function logout() {
     sessionStorage.removeItem("future_forge_token");
     setStudent(null);
-    setConversations([]);
-    setCurrentConversationId(null);
     setMessages([]);
-    setQuestion("");
+    setCurrentConversationId(null);
     setActiveNav("dashboard");
   }
 
-  // Load an existing conversation
-  async function loadConversation(convId: number) {
-    if (isLoading || isStreaming) return;
+  // Load a conversation
+  async function loadConversation(conversationId: number) {
     const token = sessionStorage.getItem("future_forge_token");
     if (!token) return;
 
     try {
-      const response = await fetch(`${API_URL}/conversations/${convId}`, {
+      const response = await fetch(`${API_URL}/conversations/${conversationId}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -184,13 +185,13 @@ function App() {
 
       if (response.ok) {
         const data = await response.json();
+        setCurrentConversationId(data.id);
         setMessages(
-          data.messages.map((m: { role: "user" | "assistant"; content: string }) => ({
+          data.messages.map((m: any) => ({
             role: m.role,
             content: m.content
           }))
         );
-        setCurrentConversationId(convId);
         setActiveNav("chat");
       }
     } catch (err) {
@@ -199,14 +200,13 @@ function App() {
   }
 
   // Delete a conversation
-  async function deleteConversation(e: React.MouseEvent, convId: number) {
+  async function deleteConversation(e: React.MouseEvent, conversationId: number) {
     e.stopPropagation();
-    e.preventDefault();
     const token = sessionStorage.getItem("future_forge_token");
     if (!token) return;
 
     try {
-      const response = await fetch(`${API_URL}/conversations/${convId}`, {
+      const response = await fetch(`${API_URL}/conversations/${conversationId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`
@@ -214,8 +214,8 @@ function App() {
       });
 
       if (response.ok) {
-        setConversations((prev) => prev.filter((c) => c.id !== convId));
-        if (currentConversationId === convId) {
+        setConversations((prev) => prev.filter((c) => c.id !== conversationId));
+        if (currentConversationId === conversationId) {
           setCurrentConversationId(null);
           setMessages([]);
         }
@@ -226,30 +226,34 @@ function App() {
   }
 
   // Career suggestions
-  const suggestions = [
+  const consultationDossiers = [
     {
-      icon: "🎓",
-      title: "Career after BCA",
-      description: "Explore top job roles, NIT MCA, and starting packages.",
-      prompt: "What are the best career options after BCA in India?"
+      index: "01",
+      topic: "DEGREE TRAJECTORIES",
+      title: "Undergraduate Degree to Core Product vs IT Services",
+      desc: "How to position a BCA, B.Tech, or B.Sc degree for high-growth tech roles versus campus mass placement drives.",
+      prompt: "What are the most effective strategies for a fresher with a BCA or B.Tech degree in India to transition into high-growth product engineering roles instead of traditional mass-recruitment IT services?"
     },
     {
-      icon: "💻",
-      title: "Tech Careers & CTC",
-      description: "Explore software developer salaries and hiring trends.",
-      prompt: "What are the salary expectations for freshers in tech in India?"
+      index: "02",
+      topic: "COMPENSATION BENCHMARKS",
+      title: "Indian Fresher CTC Realities: Base vs Variable vs ESOPs",
+      desc: "Realistic salary breakdowns across Tier-1, Tier-2, and Tier-3 engineering and MCA cohorts in 2025–26.",
+      prompt: "Explain the realistic starting salary (CTC) benchmarks for freshers in India across Software Engineering, Data Science, and Analyst roles. Break down base pay versus inflated CTC components."
     },
     {
-      icon: "📊",
-      title: "CA vs MBA",
-      description: "Compare finance and business management paths.",
-      prompt: "Which is better after graduation in India: CA or MBA?"
+      index: "03",
+      topic: "ADMISSIONS & ENTRANCE",
+      title: "NIMCET vs GATE CS vs CAT: Preparation Milestones",
+      desc: "Eligibility requirements, timeline sequencing, and cutoff percentile strategies for top Indian institutions.",
+      prompt: "Give me an authoritative preparation roadmap comparing NIMCET for NIT MCA, GATE CS for M.Tech/PSUs, and CAT for MBA. What are the key eligibility criteria and timelines for Indian undergraduates?"
     },
     {
-      icon: "🏛️",
-      title: "Govt Jobs vs Private",
-      description: "Compare SSC CGL, banking, and private sector careers.",
-      prompt: "How do government jobs like SSC CGL compare with private sector careers?"
+      index: "04",
+      topic: "PUBLIC SECTOR ALTERNATIVES",
+      title: "Central Government PSUs vs Private Sector Careers",
+      desc: "Comparing stability, compensation trajectory, and work-life balance between SSC CGL, Banking, and Private Tech.",
+      prompt: "How do central government career paths like SSC CGL and PSU appointments compare with private technology careers in India in terms of long-term stability, career progression, and total compensation?"
     }
   ];
 
@@ -258,14 +262,10 @@ function App() {
     async function checkHealth() {
       try {
         const response = await fetch(`${API_URL}/health`);
-
         if (response.ok) {
           const data = await response.json();
           setBackendStatus("connected");
-
-          if (data.model) {
-            setModelName(formatModelName(data.model));
-          }
+          setModelName(formatModelName(data.model));
         } else {
           setBackendStatus("offline");
         }
@@ -275,67 +275,59 @@ function App() {
     }
 
     checkHealth();
+    const interval = setInterval(checkHealth, 30000);
+    return () => clearInterval(interval);
   }, []);
 
-  // Auto-scroll conversation
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isLoading, isStreaming]);
-
-  // Stream AI response
-  async function streamReply(conversationToSend: Message[]) {
+  // Streaming reply handler
+  async function streamReply(history: Message[]) {
     setIsLoading(true);
-    setIsStreaming(false);
+    setIsStreaming(true);
 
     try {
       const token = sessionStorage.getItem("future_forge_token");
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json"
+      };
+
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
 
       const response = await fetch(`${API_URL}/chat`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
+        headers,
         body: JSON.stringify({
-          messages: conversationToSend,
-          conversation_id: currentConversationId,
-          stream: true
+          messages: history,
+          conversation_id: currentConversationId
         })
       });
 
       if (!response.ok) {
-        throw new Error(`Server returned HTTP ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       setBackendStatus("connected");
 
-      const modelHeader = response.headers.get("X-Model-Active");
-      if (modelHeader) {
-        setModelName(formatModelName(modelHeader));
-      }
-
-      const convIdHeader = response.headers.get("X-Conversation-Id");
-      if (convIdHeader) {
-        const parsed = Number(convIdHeader);
-        if (!isNaN(parsed) && parsed > 0) {
-          setCurrentConversationId(parsed);
+      const conversationIdHeader = response.headers.get("X-Conversation-Id");
+      if (conversationIdHeader) {
+        const convId = parseInt(conversationIdHeader, 10);
+        if (!isNaN(convId)) {
+          setCurrentConversationId(convId);
         }
       }
 
       const reader = response.body?.getReader();
+      const decoder = new TextDecoder("utf-8");
+
       if (!reader) {
-        throw new Error("Response body is not readable");
+        throw new Error("No response body readable stream.");
       }
 
       setIsLoading(false);
-      setIsStreaming(true);
 
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "" }
-      ]);
+      setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
 
-      const decoder = new TextDecoder("utf-8");
       let accumulated = "";
 
       while (true) {
@@ -385,13 +377,12 @@ function App() {
         {
           role: "assistant",
           content:
-            "Sorry, I couldn't connect to the local inference backend. Please ensure Ollama and the FastAPI backend are active, then try again."
+            "Unable to connect to the local inference backend. Please ensure the FastAPI service is active on port 8000 and Ollama is running."
         }
       ]);
     } finally {
       setIsLoading(false);
       setIsStreaming(false);
-      // Refresh previous conversations list
       fetchConversations();
     }
   }
@@ -412,7 +403,7 @@ function App() {
     await streamReply(newMessages);
   }
 
-  // Start a fresh conversation
+  // Start fresh conversation with prompt
   async function startFreshConversation(prompt: string) {
     if (isLoading || isStreaming) return;
 
@@ -438,7 +429,7 @@ function App() {
     setActiveNav("chat");
   }
 
-  // Sidebar navigation
+  // Navigation router
   function handleNavClick(target: Navigation) {
     if (isLoading || isStreaming) return;
 
@@ -461,12 +452,12 @@ function App() {
     }
   }
 
-  // Save student profile through backend API
+  // Save student profile
   async function saveStudentProfile(profile: ProfileData) {
     const token = sessionStorage.getItem("future_forge_token");
 
     if (!token) {
-      throw new Error("Your login session has expired. Please log in again.");
+      throw new Error("Your login session has expired. Please sign in again.");
     }
 
     const response = await fetch(`${API_URL}/auth/profile`, {
@@ -481,7 +472,7 @@ function App() {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.detail || data.message || "Unable to save profile.");
+      throw new Error(data.detail || data.message || "Unable to update profile.");
     }
 
     setStudent(data.student);
@@ -490,351 +481,354 @@ function App() {
 
   return (
     <div className="app-shell">
-      <div className="app-fibers-bg" aria-hidden="true">
-        <GhostFibers
-          glowColor={theme === "dark" ? "#38bdf8" : "#0284c7"}
-          lineColor={theme === "dark" ? "#7dd3fc" : "#0369a1"}
-          secondaryColor={theme === "dark" ? "#818cf8" : "#4f46e5"}
-          speed={0.4}
-          threads={48}
-          brightness={0.85}
-          glow={0.8}
-          particles={0.6}
-          lightMode={theme === "light"}
-          mouseInteraction={true}
-        />
-      </div>
+      {/* Tactile paper texture layer (zero WebGL overhead) */}
+      <div className="app-paper-texture" aria-hidden="true" />
 
       {!authChecked ? (
         <main className="auth-page">
           <section className="auth-card">
-            <p>Loading CareerPath AI...</p>
+            <p>Loading CareerPath Advisory System...</p>
           </section>
         </main>
       ) : !student ? (
         <AuthScreen onAuthenticated={handleAuthenticated} />
       ) : (
         <div className="app-container">
+          {/* Institutional Sidebar */}
           <aside className="sidebar">
-            <div className="brand" onClick={() => handleNavClick("dashboard")} style={{ cursor: "pointer" }}>
-              <div className="brand-badge">✦</div>
-              <div>
-                <h2>CareerPath</h2>
-                <p className="brand-sub">Career Guidance AI</p>
+            <div className="brand" onClick={() => handleNavClick("dashboard")} role="button" tabIndex={0}>
+              <div className="brand-seal-icon" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                  <line x1="12" y1="6" x2="16" y2="6" />
+                  <line x1="12" y1="10" x2="16" y2="10" />
+                </svg>
+              </div>
+              <div className="brand-text-block">
+                <span className="brand-name">CareerPath</span>
+                <span className="brand-edition">India Edition</span>
               </div>
             </div>
 
-        <button
-          className="new-chat-btn"
-          onClick={newChat}
-          disabled={isLoading || isStreaming}
-        >
-          <span>+</span> New Conversation
-        </button>
-
-        <div className="sidebar-section">
-          <span className="section-title">QUICK EXPLORE</span>
-
-          <button
-            className={`nav-item ${activeNav === "dashboard" ? "active" : ""}`}
-            onClick={() => handleNavClick("dashboard")}
-            disabled={isLoading || isStreaming}
-          >
-            <span className="nav-bullet">⌂</span>
-            <span className="nav-label">Dashboard</span>
-          </button>
-
-          <button
-            className={`nav-item ${activeNav === "chat" && currentConversationId === null ? "active" : ""}`}
-            onClick={() => handleNavClick("chat")}
-            disabled={isLoading || isStreaming}
-          >
-            <span className="nav-bullet">●</span>
-            <span className="nav-label">Ask Anything</span>
-          </button>
-
-          <button
-            className={`nav-item ${activeNav === "salaries" ? "active" : ""}`}
-            onClick={() => handleNavClick("salaries")}
-            disabled={isLoading || isStreaming}
-          >
-            <span className="nav-bullet">₹</span>
-            <span className="nav-label">Salary Benchmarks</span>
-          </button>
-
-          <button
-            className={`nav-item ${activeNav === "exams" ? "active" : ""}`}
-            onClick={() => handleNavClick("exams")}
-            disabled={isLoading || isStreaming}
-          >
-            <span className="nav-bullet">◈</span>
-            <span className="nav-label">Exam Roadmaps</span>
-          </button>
-
-          <button
-            className={`nav-item ${activeNav === "profile" ? "active" : ""}`}
-            onClick={() => handleNavClick("profile")}
-            disabled={isLoading || isStreaming}
-          >
-            <span className="nav-bullet">◉</span>
-            <span className="nav-label">My Profile</span>
-          </button>
-        </div>
-
-        <div className="sidebar-section conversations-history">
-          <div className="history-header">
-            <span className="section-title">CHATS ({conversations.length})</span>
-          </div>
-
-          <div className="conversations-scroll">
-            {conversations.length === 0 ? (
-              <p className="empty-history-text">No saved conversations yet.</p>
-            ) : (
-              conversations.map((c) => (
-                <div
-                  key={c.id}
-                  className={`conversation-item ${
-                    activeNav === "chat" && currentConversationId === c.id ? "active" : ""
-                  }`}
-                  onClick={() => loadConversation(c.id)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") loadConversation(c.id);
-                  }}
-                  title={c.title}
-                >
-                  <span className="conv-icon">💬</span>
-                  <span className="conv-title">{c.title}</span>
-                  <button
-                    type="button"
-                    className="conv-delete-btn"
-                    onClick={(e) => deleteConversation(e, c.id)}
-                    title="Delete conversation"
-                    aria-label="Delete conversation"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        <div className="sidebar-bottom">
-          <div className="edition-badge">
-            <span className="edition-flag">🇮🇳</span>
-            <span>India Edition (2025/26)</span>
-          </div>
-
-          <div className="user-profile">
-            <div className="user-avatar">
-              {student.name.charAt(0).toUpperCase()}
-            </div>
-
-            <div className="user-details">
-              <p className="user-name">{student.name}</p>
-              <p className="user-sub">Career Explorer</p>
-            </div>
-
-            <button className="logout-btn" onClick={logout}>
-              Log out
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      <main className="main-content">
-        <header className="topbar">
-          <div className="topbar-left">
-            <span
-              className={`status-indicator ${
-                backendStatus === "offline" ? "offline" : ""
-              }`}
-            ></span>
-
-            <span className="status-label">
-              {backendStatus === "connected"
-                ? "AI CAREER ASSISTANT"
-                : "BACKEND OFFLINE"}
-            </span>
-          </div>
-
-          <div className="topbar-right">
             <button
-              className="theme-toggle-btn"
-              onClick={toggleTheme}
-              title={`Switch to ${theme === "dark" ? "Light" : "Dark"} mode`}
+              className="new-chat-btn"
+              onClick={newChat}
+              disabled={isLoading || isStreaming}
             >
-              {theme === "dark" ? "☀️ Light" : "🌙 Dark"}
+              <span>+</span> New Advisory Session
             </button>
 
-            <div className="model-chip" title={modelName}>
-              <span className="chip-dot">◈</span>
-              <span className="chip-name">{modelName}</span>
+            <div className="sidebar-section">
+              <span className="section-title">NAVIGATION</span>
+
+              <button
+                className={`nav-item ${activeNav === "dashboard" ? "active" : ""}`}
+                onClick={() => handleNavClick("dashboard")}
+                disabled={isLoading || isStreaming}
+              >
+                <span className="nav-index">01</span>
+                <span className="nav-label">Candidate Dossier</span>
+              </button>
+
+              <button
+                className={`nav-item ${activeNav === "chat" && currentConversationId === null ? "active" : ""}`}
+                onClick={() => handleNavClick("chat")}
+                disabled={isLoading || isStreaming}
+              >
+                <span className="nav-index">02</span>
+                <span className="nav-label">Direct Counselor</span>
+              </button>
+
+              <button
+                className={`nav-item ${activeNav === "salaries" ? "active" : ""}`}
+                onClick={() => handleNavClick("salaries")}
+                disabled={isLoading || isStreaming}
+              >
+                <span className="nav-index">03</span>
+                <span className="nav-label">CTC Benchmarks</span>
+              </button>
+
+              <button
+                className={`nav-item ${activeNav === "exams" ? "active" : ""}`}
+                onClick={() => handleNavClick("exams")}
+                disabled={isLoading || isStreaming}
+              >
+                <span className="nav-index">04</span>
+                <span className="nav-label">Entrance Exams</span>
+              </button>
+
+              <button
+                className={`nav-item ${activeNav === "profile" ? "active" : ""}`}
+                onClick={() => handleNavClick("profile")}
+                disabled={isLoading || isStreaming}
+              >
+                <span className="nav-index">05</span>
+                <span className="nav-label">Academic Profile</span>
+              </button>
             </div>
-          </div>
-        </header>
 
-        {activeNav === "dashboard" ? (
-          <StudentDashboard
-            student={student}
-            onEditProfile={() => setActiveNav("profile")}
-            onOpenChat={(prompt) => {
-              setActiveNav("chat");
-              startFreshConversation(prompt);
-            }}
-          />
-        ) : activeNav === "profile" ? (
-          <StudentProfile
-            student={student}
-            onSave={saveStudentProfile}
-            onBack={() => setActiveNav("dashboard")}
-          />
-        ) : (
-          <>
-            <section
-              className={`chat-viewport ${
-                messages.length === 0 ? "empty" : ""
-              }`}
-            >
-              {messages.length === 0 ? (
-                <div className="hero-section">
-                  <div className="hero-pill">
-                    <span>✦</span>
-                    <span>YOUR FUTURE STARTS HERE</span>
-                  </div>
+            <div className="sidebar-section conversations-history">
+              <div className="history-header">
+                <span className="section-title">SAVED SESSIONS ({conversations.length})</span>
+              </div>
 
-                  <h1>
-                    Discover your potential.
-                    <br />
-                    <em>Find your path.</em>
-                  </h1>
-
-                  <p className="hero-subtext">
-                    Ask any question about your studies, career opportunities,
-                    higher education, or salary expectations in India.
-                  </p>
-
-                  <div className="pathway-grid">
-                    {suggestions.map((item, i) => (
-                      <button
-                        key={i}
-                        className="pathway-card"
-                        onClick={() => startFreshConversation(item.prompt)}
-                        disabled={isLoading || isStreaming}
-                      >
-                        <span className="pathway-icon">{item.icon}</span>
-                        <h3>{item.title}</h3>
-                        <p>{item.description}</p>
-                        <span className="card-action">Ask this &rarr;</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="conversation-thread">
-                  {messages.map((message, index) => (
+              <div className="conversations-scroll">
+                {conversations.length === 0 ? (
+                  <p className="empty-history-text">No archived sessions.</p>
+                ) : (
+                  conversations.map((c) => (
                     <div
-                      key={index}
-                      className={`message-row ${message.role}`}
+                      key={c.id}
+                      className={`conversation-item ${
+                        activeNav === "chat" && currentConversationId === c.id ? "active" : ""
+                      }`}
+                      onClick={() => loadConversation(c.id)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") loadConversation(c.id);
+                      }}
+                      title={c.title}
                     >
-                      <div className={`message-bubble ${message.role}`}>
-                        <div className="bubble-header">
-                          <span className="bubble-author">
-                            {message.role === "user"
-                              ? "You"
-                              : "✦ CareerPath AI"}
-                          </span>
-                        </div>
-
-                        {message.role === "assistant" ? (
-                          <div className="assistant-wrapper">
-                            <MarkdownMessage content={message.content} />
-                          </div>
-                        ) : (
-                          <p className="user-message-text">
-                            {message.content}
-                          </p>
-                        )}
-                      </div>
+                      <span className="conv-indicator">•</span>
+                      <span className="conv-title">{c.title}</span>
+                      <button
+                        type="button"
+                        className="conv-delete-btn"
+                        onClick={(e) => deleteConversation(e, c.id)}
+                        title="Delete conversation"
+                        aria-label="Delete conversation"
+                      >
+                        ×
+                      </button>
                     </div>
-                  ))}
+                  ))
+                )}
+              </div>
+            </div>
 
-                  {isLoading && (
-                    <div className="message-row assistant">
-                      <div className="message-bubble assistant thought-bubble">
-                        <ThoughtLine
-                          working={isLoading}
-                          steps={[
-                            "Reading student profile & context",
-                            "Analyzing Indian industry trends",
-                            "Formulating personalized guidance"
-                          ]}
-                          label="Synthesizing career advice…"
-                          doneLabel="Analysis complete"
-                          glyph="sparkle"
-                          color={theme === "dark" ? "#7dd3fc" : "#0284c7"}
-                          glyphColor={theme === "dark" ? "#38bdf8" : "#0284c7"}
-                          fontSize={13.5}
-                          breathPeriod={1.5}
-                          breathDepth={0.4}
-                          collapsible={false}
-                          showTimer={true}
-                        />
-                      </div>
-                    </div>
-                  )}
+            <div className="sidebar-bottom">
+              <div className="edition-badge">
+                <span className="edition-dot" />
+                <span>Pan-India Grounded Dataset</span>
+              </div>
 
-                  <div ref={messagesEndRef} />
+              <div className="user-profile">
+                <div className="user-avatar">
+                  {student.name.charAt(0).toUpperCase()}
                 </div>
-              )}
-            </section>
 
-            <footer className="composer-container">
-              <div className="composer-box">
-                <input
-                  id="career-input"
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
+                <div className="user-details">
+                  <p className="user-name">{student.name}</p>
+                  <p className="user-sub">{student.course || "Candidate"}</p>
+                </div>
 
-                      if (
-                        e.nativeEvent.isComposing ||
-                        (e.nativeEvent as any).keyCode === 229
-                      ) {
-                        return;
-                      }
-
-                      sendMessage();
-                    }
-                  }}
-                  placeholder="Ask anything about careers, salaries in India, exams, or next steps..."
-                  disabled={isLoading || isStreaming}
-                  autoComplete="off"
-                />
-
-                <button
-                  className="send-btn"
-                  onClick={() => sendMessage()}
-                  disabled={!question.trim() || isLoading || isStreaming}
-                  aria-label="Send message"
-                >
-                  &uarr;
+                <button className="logout-btn" onClick={logout} title="Sign out">
+                  Sign out
                 </button>
               </div>
+            </div>
+          </aside>
 
-              <p className="composer-footer-note">
-                AI suggestions are for career guidance. Double check important
-                exam dates and requirements.
-              </p>
-            </footer>
-          </>
-        )}
-      </main>
-    </div>
+          {/* Main Content Workspace */}
+          <main className="main-content">
+            <header className="topbar">
+              <div className="topbar-left">
+                <span
+                  className={`status-indicator ${
+                    backendStatus === "offline" ? "offline" : ""
+                  }`}
+                />
+                <span className="status-label">
+                  {backendStatus === "connected"
+                    ? "GROUNDED ADVISORY ENGINE"
+                    : "ENGINE DISCONNECTED"}
+                </span>
+              </div>
+
+              <div className="topbar-right">
+                <button
+                  className="theme-toggle-btn"
+                  onClick={toggleTheme}
+                  title={`Switch to ${theme === "dark" ? "Editorial Light" : "Nocturne Dark"} mode`}
+                >
+                  <span className="theme-toggle-label">{theme === "dark" ? "Light Paper" : "Nocturne"}</span>
+                </button>
+
+                <div className="model-chip" title={modelName}>
+                  <span className="chip-dot" />
+                  <span className="chip-name">{modelName}</span>
+                </div>
+              </div>
+            </header>
+
+            {activeNav === "dashboard" ? (
+              <StudentDashboard
+                student={student}
+                onEditProfile={() => setActiveNav("profile")}
+                onOpenChat={(prompt) => {
+                  setActiveNav("chat");
+                  startFreshConversation(prompt);
+                }}
+              />
+            ) : activeNav === "profile" ? (
+              <StudentProfile
+                student={student}
+                onSave={saveStudentProfile}
+                onBack={() => setActiveNav("dashboard")}
+              />
+            ) : (
+              <>
+                <section
+                  className={`chat-viewport ${
+                    messages.length === 0 ? "empty" : ""
+                  }`}
+                >
+                  {messages.length === 0 ? (
+                    <div className="consultation-dossier-hero">
+                      <div className="hero-kicker-strip">
+                        <span className="kicker-label">INTERACTIVE COUNSELING REPOSITORY</span>
+                        <span className="kicker-ref">DISPATCH · ACADEMIC SESSION 2025–26</span>
+                      </div>
+
+                      <div className="hero-editorial-split">
+                        <div className="hero-editorial-left">
+                          <h1 className="hero-editorial-title">
+                            Direct Inquiry with Your Career Advisor.
+                          </h1>
+                          <p className="hero-editorial-lead">
+                            Formulate queries regarding degree trajectories, placement realities, starting CTC breakdowns, and competitive entrance timelines.
+                          </p>
+                          <div className="hero-candidate-badge">
+                            <span className="badge-bullet">Candidate:</span>
+                            <strong>{student.name}</strong> ({student.course || "Degree Unset"} · {student.institution || "College Unset"})
+                          </div>
+                        </div>
+
+                        <div className="hero-dossier-grid">
+                          {consultationDossiers.map((item) => (
+                            <button
+                              key={item.index}
+                              type="button"
+                              className="dossier-prompt-card"
+                              onClick={() => startFreshConversation(item.prompt)}
+                              disabled={isLoading || isStreaming}
+                            >
+                              <div className="prompt-card-top">
+                                <span className="prompt-index">{item.index}</span>
+                                <span className="prompt-topic">{item.topic}</span>
+                              </div>
+                              <h3 className="prompt-title">{item.title}</h3>
+                              <p className="prompt-desc">{item.desc}</p>
+                              <span className="prompt-action">Open Consultation Track &rarr;</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="conversation-thread">
+                      {messages.map((message, index) => (
+                        <div
+                          key={index}
+                          className={`message-row ${message.role}`}
+                        >
+                          <div className={`message-bubble ${message.role}`}>
+                            <div className="bubble-header">
+                              <span className="bubble-author">
+                                {message.role === "user"
+                                  ? student.name
+                                  : "CareerPath Advisory Intelligence"}
+                              </span>
+                            </div>
+
+                            {message.role === "assistant" ? (
+                              <div className="assistant-wrapper">
+                                <MarkdownMessage content={message.content} />
+                              </div>
+                            ) : (
+                              <p className="user-message-text">
+                                {message.content}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+
+                      {isLoading && (
+                        <div className="message-row assistant">
+                          <div className="message-bubble assistant thought-bubble">
+                            <ThoughtLine
+                              working={isLoading}
+                              steps={[
+                                "Evaluating candidate academic profile & timeline",
+                                "Correlating Indian placement & compensation indices",
+                                "Formulating structured career recommendations"
+                              ]}
+                              label="Synthesizing career advice…"
+                              doneLabel="Analysis complete"
+                              glyph="sparkle"
+                              color={theme === "dark" ? "#e07a5f" : "#9e3b1b"}
+                              glyphColor={theme === "dark" ? "#e09f3e" : "#b87d28"}
+                              fontSize={13.5}
+                              breathPeriod={1.5}
+                              breathDepth={0.4}
+                              collapsible={false}
+                              showTimer={true}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div ref={messagesEndRef} />
+                    </div>
+                  )}
+                </section>
+
+                <footer className="composer-container">
+                  <div className="composer-box">
+                    <input
+                      id="career-input"
+                      value={question}
+                      onChange={(e) => setQuestion(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+
+                          if (
+                            e.nativeEvent.isComposing ||
+                            (e.nativeEvent as any).keyCode === 229
+                          ) {
+                            return;
+                          }
+
+                          sendMessage();
+                        }
+                      }}
+                      placeholder="Inquire regarding Indian placement CTCs, competitive entrance exams, or degree roadmaps..."
+                      disabled={isLoading || isStreaming}
+                      autoComplete="off"
+                    />
+
+                    <button
+                      className="send-btn"
+                      onClick={() => sendMessage()}
+                      disabled={!question.trim() || isLoading || isStreaming}
+                      aria-label="Send inquiry"
+                    >
+                      &uarr;
+                    </button>
+                  </div>
+
+                  <p className="composer-footer-note">
+                    Counsel is synthesized from curated 2025–26 Indian educational benchmarks. Verify formal university & entrance examination circulars.
+                  </p>
+                </footer>
+              </>
+            )}
+          </main>
+        </div>
       )}
     </div>
   );

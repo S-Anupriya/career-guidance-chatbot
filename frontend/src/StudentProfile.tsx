@@ -45,7 +45,6 @@ export function StudentProfile({ student, onSave, onBack }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  // Sync form state if student profile updates
   useEffect(() => {
     setCourse(student.course || "");
     setInstitution(student.institution || "");
@@ -59,12 +58,10 @@ export function StudentProfile({ student, onSave, onBack }: Props) {
     event.preventDefault();
     setError("");
 
-    const year = graduationYear.trim()
-      ? Number(graduationYear)
-      : null;
+    const year = graduationYear.trim() ? Number(graduationYear) : null;
 
     if (year !== null && (!Number.isInteger(year) || year < 2000 || year > 2100)) {
-      setError("Please enter a valid graduation year between 2000 and 2100.");
+      setError("Please specify a valid graduation batch year between 2000 and 2100.");
       return;
     }
 
@@ -83,7 +80,7 @@ export function StudentProfile({ student, onSave, onBack }: Props) {
         preferred_domains: toList(domains).slice(0, 15)
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to save profile.");
+      setError(err instanceof Error ? err.message : "Unable to save candidate profile.");
     } finally {
       setSaving(false);
     }
@@ -92,63 +89,70 @@ export function StudentProfile({ student, onSave, onBack }: Props) {
   return (
     <section className="dashboard-page">
       <div className="profile-page-container">
-        <button className="profile-back-button" onClick={onBack}>
-          &larr; Back to Dashboard
+        <button type="button" className="profile-back-button" onClick={onBack}>
+          &larr; Return to Dashboard
         </button>
 
-        <div className="profile-page-header">
-          <div className="hero-pill">
-            <span>✦</span>
-            <span>ACADEMIC PROFILE</span>
+        <header className="profile-page-header">
+          <div className="masthead-meta">
+            <span className="masthead-tag">CANDIDATE DOSSIER AMENDMENT</span>
+            <span className="masthead-date">SAVED TO LOCAL SQLITE REPOSITORY</span>
           </div>
-          <h1>My Student Profile</h1>
-          <p className="dashboard-subtitle">
-            Keep your degree, timeline, and current skills updated so CareerPath AI tailors all guidance to your stage.
+          <h1 className="profile-title">Academic & Professional Profile</h1>
+          <p className="profile-subtext">
+            Update your degree, target batch, and technical skills. CareerPath AI references these parameters to customize career roadmaps, exam targets, and CTC salary ranges.
           </p>
-        </div>
+        </header>
 
         <form className="profile-editor-card" onSubmit={handleSubmit}>
+          {/* Section 1 */}
           <div className="profile-section-heading">
-            <span className="section-badge-icon">👤</span>
+            <span className="section-index-pill">01</span>
             <div>
-              <h3>Basic Academic Information</h3>
-              <p>Your registered profile details and college enrollment</p>
+              <h3>Institutional Affiliation & Enrollment</h3>
+              <p>Your verified degree program and academic schedule</p>
             </div>
           </div>
 
           <div className="profile-form-grid">
-            <label>
-              Full Name
+            <label className="profile-field">
+              <span className="field-label">Candidate Name</span>
               <input value={student.name} disabled className="input-disabled" />
+              <span className="field-hint">Fixed to registered account identity</span>
             </label>
 
-            <label>
-              Email Address
+            <label className="profile-field">
+              <span className="field-label">Account Email</span>
               <input value={student.email} disabled className="input-disabled" />
+              <span className="field-hint">Primary verification identifier</span>
             </label>
 
-            <label>
-              Course / Degree
+            <label className="profile-field">
+              <span className="field-label">Degree & Branch</span>
               <input
                 value={course}
                 onChange={e => setCourse(e.target.value)}
-                placeholder="e.g. BCA, B.Tech CSE, B.Com"
+                placeholder="e.g. BCA, B.Tech Computer Science, B.Sc"
                 maxLength={100}
+                className="profile-input"
               />
+              <span className="field-hint">Used for degree-specific career eligibility mapping</span>
             </label>
 
-            <label>
-              College / Institution
+            <label className="profile-field">
+              <span className="field-label">College / University</span>
               <input
                 value={institution}
                 onChange={e => setInstitution(e.target.value)}
-                placeholder="e.g. East Point College of Higher Education"
+                placeholder="e.g. East Point College of Higher Education, Bengaluru"
                 maxLength={150}
+                className="profile-input"
               />
+              <span className="field-hint">Enables tier-appropriate campus & off-campus counsel</span>
             </label>
 
-            <label>
-              Graduation Year
+            <label className="profile-field">
+              <span className="field-label">Graduation Batch</span>
               <input
                 type="number"
                 min="2000"
@@ -156,69 +160,72 @@ export function StudentProfile({ student, onSave, onBack }: Props) {
                 value={graduationYear}
                 onChange={e => setGraduationYear(e.target.value)}
                 placeholder="e.g. 2026"
+                className="profile-input"
               />
+              <span className="field-hint">Determines remaining preparation runway</span>
             </label>
           </div>
 
+          {/* Section 2 */}
           <div className="profile-section-heading">
-            <span className="section-badge-icon">✨</span>
+            <span className="section-index-pill">02</span>
             <div>
-              <h3>Skills, Interests & Target Domains</h3>
-              <p>Separate items with commas (e.g., Python, SQL, Cloud Computing)</p>
+              <h3>Skill Inventory & Career Ambitions</h3>
+              <p>Comma-separated list of capabilities, interests, and target roles</p>
             </div>
           </div>
 
           <div className="profile-form-grid full-width-stack">
-            <label>
-              Your Technical & Soft Skills
+            <label className="profile-field">
+              <span className="field-label">Technical & Foundational Skills</span>
               <textarea
                 value={skills}
                 onChange={e => setSkills(e.target.value)}
-                placeholder="e.g. Python, SQL, Data Structures, Git, Problem Solving"
+                placeholder="e.g. Python, SQL, React, Data Structures, Git, REST APIs"
                 rows={3}
+                className="profile-textarea"
               />
+              <span className="field-hint">Separate items with commas</span>
             </label>
 
-            <label>
-              Your Academic & Professional Interests
+            <label className="profile-field">
+              <span className="field-label">Academic & Industry Interests</span>
               <textarea
                 value={interests}
                 onChange={e => setInterests(e.target.value)}
-                placeholder="e.g. Machine Learning, Cloud Architecture, Financial Modeling"
+                placeholder="e.g. Machine Learning, Cloud Systems, Financial Analysis, Competitive Programming"
                 rows={3}
+                className="profile-textarea"
               />
+              <span className="field-hint">Domains where you wish to focus your projects</span>
             </label>
 
-            <label>
-              Preferred Career Domains
+            <label className="profile-field">
+              <span className="field-label">Target Trajectories & Exams</span>
               <textarea
                 value={domains}
                 onChange={e => setDomains(e.target.value)}
-                placeholder="e.g. AI/ML Engineering, Product Management, NIT MCA, PSU / Govt"
+                placeholder="e.g. Product Engineering, NIMCET 2026, Data Science, Central PSU Roles"
                 rows={3}
+                className="profile-textarea"
               />
+              <span className="field-hint">Aspirations that guide AI roadmap recommendations</span>
             </label>
           </div>
 
-          {error && <div className="auth-message error">{error}</div>}
+          {error && <div className="profile-error-box">{error}</div>}
 
           <div className="profile-actions-bar">
             <button
-              type="button"
-              className="action-button-secondary"
-              onClick={onBack}
-              disabled={saving}
-            >
-              Cancel
-            </button>
-
-            <button
               type="submit"
-              className="action-button-primary"
+              className="profile-save-button"
               disabled={saving}
             >
-              {saving ? "Saving Changes..." : "Save My Profile \u2192"}
+              {saving ? "Updating Dossier..." : "Save Profile Details →"}
             </button>
+            <span className="profile-note">
+              Modifications immediately update your personalized LLM context prompt.
+            </span>
           </div>
         </form>
       </div>
