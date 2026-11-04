@@ -10,7 +10,7 @@ set "PROJECT_ROOT=%~dp0"
 set "BACKEND_DIR=%PROJECT_ROOT%backend"
 set "FRONTEND_DIR=%PROJECT_ROOT%frontend"
 
-:: 1. Check Ollama
+REM 1. Check Ollama
 echo [1/4] Checking Ollama service...
 curl -s --connect-timeout 1 http://127.0.0.1:11434/api/tags >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
@@ -25,7 +25,7 @@ if %ERRORLEVEL% NEQ 0 (
 )
 echo [OK] Ollama ready.
 
-:: Check if models exist in Ollama
+REM Check if models exist in Ollama
 where ollama >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
     set "FOUND_MODEL=0"
@@ -33,12 +33,12 @@ if %ERRORLEVEL% EQU 0 (
         set "FOUND_MODEL=1"
     )
     if "!FOUND_MODEL!"=="0" (
-        echo [INFO] No AI models detected in Ollama. Pulling recommended lightweight model (gemma:2b)...
+        echo [INFO] No AI models detected in Ollama. Pulling recommended model gemma:2b...
         ollama pull gemma:2b
     )
 )
 
-:: 2. Check and Setup Backend Python Environment
+REM 2. Check and Setup Backend Python Environment
 echo.
 echo [2/4] Checking Python environment...
 if not exist "%BACKEND_DIR%\.venv\Scripts\uvicorn.exe" (
@@ -68,11 +68,11 @@ if not exist "%BACKEND_DIR%\.venv\Scripts\uvicorn.exe" (
 )
 echo [OK] Backend environment ready.
 
-:: 3. Check and Setup Frontend Node Modules
+REM 3. Check and Setup Frontend Node Modules
 echo.
 echo [3/4] Checking Frontend dependencies...
 if not exist "%FRONTEND_DIR%\node_modules" (
-    echo Installing frontend dependencies (npm install)...
+    echo Installing frontend dependencies via npm install...
     where npm >nul 2>&1
     if %ERRORLEVEL% NEQ 0 (
         echo [ERROR] Node.js/npm is not installed. Please install Node.js 18+ from nodejs.org.
@@ -85,7 +85,7 @@ if not exist "%FRONTEND_DIR%\node_modules" (
 )
 echo [OK] Frontend packages ready.
 
-:: 4. Launch Backend and Frontend
+REM 4. Launch Backend and Frontend
 echo.
 echo [4/4] Launching CareerPath AI services...
 
