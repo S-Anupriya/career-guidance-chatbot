@@ -97,6 +97,11 @@ if %ERRORLEVEL% EQU 0 (
     start "CareerPath AI - Backend" /MIN cmd /c "cd /d "%BACKEND_DIR%" && "%BACKEND_DIR%\.venv\Scripts\uvicorn.exe" main:app --host 127.0.0.1 --port 8000"
 )
 
+REM Free port 5173 if a previous orphaned instance was left running
+for /f "tokens=5" %%p in ('netstat -aon 2^^^>nul ^^^| findstr ":5173 " ^^^| findstr "LISTENING"') do (
+    taskkill /F /PID %%p >nul 2>&1
+)
+
 echo Starting React frontend on http://127.0.0.1:5173...
 start "CareerPath AI - Frontend" cmd /c "cd /d "%FRONTEND_DIR%" && npm run dev -- --host 127.0.0.1 --port 5173"
 

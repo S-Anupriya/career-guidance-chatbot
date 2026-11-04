@@ -1,8 +1,6 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowDown01Icon, SparklesIcon, Tick02Icon } from '@hugeicons/core-free-icons';
 import './ThoughtLine.css';
 
 const GLYPH_DONE = 0.55;
@@ -146,7 +144,10 @@ export default function ThoughtLine({
       {glyph !== 'none' ? (
         <span ref={glyphRef} className="thought-line__glyph" aria-hidden="true">
           {glyph === 'sparkle' ? (
-            <HugeiconsIcon icon={SparklesIcon} size="100%" strokeWidth={2} />
+            <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3c0 4.5-3.5 8-8 8 4.5 0 8 3.5 8 8 0-4.5 3.5-8 8-8-4.5 0-8-3.5-8-8z" />
+              <path d="M19 3v4M21 5h-4" />
+            </svg>
           ) : glyph === 'dot' ? (
             <span className="thought-line__dot" />
           ) : (
@@ -175,7 +176,9 @@ export default function ThoughtLine({
       ) : null}
       {collapsible ? (
         <span className="thought-line__chevron" data-on={hasTrace ? '' : undefined} aria-hidden="true">
-          <HugeiconsIcon icon={ArrowDown01Icon} size="1em" strokeWidth={2.2} />
+          <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
         </span>
       ) : null}
       <span className="thought-line__sr" role="status">
@@ -225,7 +228,9 @@ export default function ThoughtLine({
                   <div key={`${i}-${text}`} className="thought-line__step" data-done={done ? '' : undefined}>
                     <span className="thought-line__mark" aria-hidden="true">
                       {done ? (
-                        <HugeiconsIcon icon={Tick02Icon} size="1em" strokeWidth={2.5} />
+                        <svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 13l4 4L19 7" />
+                        </svg>
                       ) : (
                         <i className="thought-line__pulse" />
                       )}
