@@ -122,11 +122,20 @@ if [ ! -d "$FRONTEND_DIR/node_modules" ]; then
     (cd "$FRONTEND_DIR" && npm install)
 fi
 
-echo "➜ Launching React frontend on http://127.0.0.1:5173..."
-echo "➜ Open http://localhost:5173 in your browser!"
+echo "=========================================================="
+echo "  ✓ CareerPath AI is NOW RUNNING!"
+echo "  ➜ Local Web Interface: http://127.0.0.1:5173"
 echo ""
-echo "Press [Ctrl+C] anytime to stop all servers."
-echo "----------------------------------------------------------"
+echo "  ⚠ DO NOT PRESS Ctrl+C OR CLOSE THIS TERMINAL!"
+echo "  Keep this window open in the background while using the app."
+echo "=========================================================="
+
+# Auto-open browser on macOS / Linux
+if [ "$OS" = "Darwin" ]; then
+    (sleep 1.2 && open "http://127.0.0.1:5173") >/dev/null 2>&1 &
+elif command -v xdg-open >/dev/null 2>&1; then
+    (sleep 1.2 && xdg-open "http://127.0.0.1:5173") >/dev/null 2>&1 &
+fi
 
 cd "$FRONTEND_DIR"
 npm run dev -- --host 127.0.0.1 --port 5173
