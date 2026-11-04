@@ -1799,9 +1799,16 @@ button, input, textarea {
 }
 
 .thought-bubble {
-  padding: 12px 16px;
+  padding: 14px 18px;
   background: var(--bg-surface);
-  border: 1px dashed var(--border-card);
+  border: 1px solid var(--border-card);
+  border-left: 3px solid var(--accent-primary);
+  border-radius: 8px;
+  width: fit-content;
+  min-width: 380px;
+  max-width: 620px;
+  box-sizing: border-box;
+  box-shadow: var(--card-shadow);
 }
 
 /* ========================================================
