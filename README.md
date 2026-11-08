@@ -57,13 +57,6 @@
 
 <br /><br />
 
-### Institutional Candidate Registry & Authentication
-*Secure portal access with Argon2id cryptographic protection and real-time password compliance verification.*
-<br />
-<img src="assets/login.png" alt="CareerPath AI Authentication" width="880" />
-
-<br /><br />
-
 ### Live AI Reasoning Telemetry (`ThoughtLine`)
 *Multi-stage inference telemetry displaying active synthesis phases and elapsed timing.*
 <br />
