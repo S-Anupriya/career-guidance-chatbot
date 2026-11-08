@@ -4,6 +4,7 @@ import { MarkdownMessage } from "./MarkdownMessage";
 import { AuthScreen } from "./AuthScreen";
 import { StudentDashboard } from "./StudentDashboard";
 import { StudentProfile } from "./StudentProfile";
+import { DevConsole } from "./DevConsole";
 import ThoughtLine from "./components/ThoughtLine";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
@@ -12,6 +13,7 @@ type Student = {
   id: number;
   name: string;
   email: string;
+  role?: string | null;
   course?: string | null;
   institution?: string | null;
   graduation_year?: number | null;
@@ -43,7 +45,7 @@ type Conversation = {
   last_message?: string | null;
 };
 
-type Navigation = "dashboard" | "chat" | "salaries" | "exams" | "profile";
+type Navigation = "dashboard" | "chat" | "salaries" | "exams" | "profile" | "dev";
 
 function formatModelName(model: string): string {
   if (!model || model.toLowerCase().includes("no model") || model === "None") {
@@ -329,6 +331,8 @@ function App() {
       setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
 
       let accumulated = "";
+      let lastRenderTime = 0;
+      const RENDER_THROTTLE_MS = 50; // Smooth 20 FPS chunk batching, zero CPU lockup on low-power devices
 
       while (true) {
         const { done, value } = await reader.read();
@@ -336,19 +340,24 @@ function App() {
 
         accumulated += decoder.decode(value, { stream: true });
 
-        setMessages((prev) => {
-          const updated = [...prev];
-          if (
-            updated.length > 0 &&
-            updated[updated.length - 1].role === "assistant"
-          ) {
-            updated[updated.length - 1] = {
-              role: "assistant",
-              content: accumulated
-            };
-          }
-          return updated;
-        });
+        const now = performance.now();
+        if (now - lastRenderTime > RENDER_THROTTLE_MS) {
+          lastRenderTime = now;
+          const currentText = accumulated;
+          setMessages((prev) => {
+            const updated = [...prev];
+            if (
+              updated.length > 0 &&
+              updated[updated.length - 1].role === "assistant"
+            ) {
+              updated[updated.length - 1] = {
+                role: "assistant",
+                content: currentText
+              };
+            }
+            return updated;
+          });
+        }
       }
 
       accumulated += decoder.decode();
@@ -648,6 +657,16 @@ function App() {
               </div>
 
               <div className="topbar-right">
+                {student && (student.email === "blackfeatheractual@proton.me" || student.role === "admin") && (
+                  <button
+                    className={`dev-portal-toggle ${activeNav === "dev" ? "active" : ""}`}
+                    onClick={() => setActiveNav(activeNav === "dev" ? "dashboard" : "dev")}
+                    title="Developer Administration"
+                  >
+                    Dev Console
+                  </button>
+                )}
+
                 <button
                   className="theme-toggle-btn"
                   onClick={toggleTheme}
@@ -663,7 +682,12 @@ function App() {
               </div>
             </header>
 
-            {activeNav === "dashboard" ? (
+            {activeNav === "dev" && (student?.email === "blackfeatheractual@proton.me" || student?.role === "admin") ? (
+              <DevConsole
+                token={sessionStorage.getItem("future_forge_token") || ""}
+                onClose={() => setActiveNav("dashboard")}
+              />
+            ) : activeNav === "dashboard" ? (
               <StudentDashboard
                 student={student}
                 onEditProfile={() => setActiveNav("profile")}
@@ -827,6 +851,43 @@ function App() {
                 </footer>
               </>
             )}
+
+            {/* Mobile Bottom Navigation Bar (Clean Segmented Tabs - Zero Emojis) */}
+            <nav className="mobile-nav-bar" aria-label="Navigation">
+              <button
+                className={`mobile-nav-pill ${activeNav === "dashboard" ? "active" : ""}`}
+                onClick={() => setActiveNav("dashboard")}
+              >
+                Dossier
+              </button>
+              <button
+                className={`mobile-nav-pill ${activeNav === "chat" ? "active" : ""}`}
+                onClick={() => setActiveNav("chat")}
+              >
+                Counselor
+              </button>
+              <button
+                className={`mobile-nav-pill ${activeNav === "profile" ? "active" : ""}`}
+                onClick={() => setActiveNav("profile")}
+              >
+                Profile
+              </button>
+              {student && (student.email === "blackfeatheractual@proton.me" || student.role === "admin") && (
+                <button
+                  className={`mobile-nav-pill ${activeNav === "dev" ? "active" : ""}`}
+                  onClick={() => setActiveNav("dev")}
+                >
+                  Dev
+                </button>
+              )}
+              <button
+                className="mobile-nav-pill mobile-nav-exit"
+                onClick={logout}
+                title="Sign out"
+              >
+                Sign Out
+              </button>
+            </nav>
           </main>
         </div>
       )}

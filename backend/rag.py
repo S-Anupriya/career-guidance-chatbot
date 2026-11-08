@@ -100,11 +100,12 @@ def retrieve_career_context(query: str) -> str:
 
 def clean_model_output(text: str) -> str:
     """
-    Strips internal <think>...</think> chain-of-thought blocks from reasoning models
-    and normalizes LaTeX arrow artifacts to standard Unicode arrows.
+    Strips internal thinking blocks, thinking headers, emojis, and normalizes LaTeX arrows.
     """
     cleaned = re.sub(r"<think>[\s\S]*?</think>", "", text)
     cleaned = re.sub(r"\[THINK\][\s\S]*?\[/THINK\]", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"^(?:Here'?s a thinking process|Thinking Process):?[\s\S]*?(?=\n\n|\n#|\n\*\*|\n1\.)", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r'[\U00010000-\U0010ffff\u2600-\u26ff\u2700-\u27bf]', '', cleaned)
     cleaned = (
         cleaned.replace("$\\rightarrow$", "→")
         .replace("\\rightarrow", "→")

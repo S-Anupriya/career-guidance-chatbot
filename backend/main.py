@@ -1,19 +1,31 @@
 import os
+import json
+from pathlib import Path
 from typing import List, Optional, Generator
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Depends
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import ollama
+import httpx
 
 from rag import retrieve_career_context, clean_model_output
 from auth import router as auth_router, get_optional_student
 from conversations import router as conversations_router, save_chat_message, get_or_create_conversation
 from database import init_db
 
-load_dotenv()
+ENV_FILE = Path(__file__).resolve().parent / ".env"
+load_dotenv(dotenv_path=ENV_FILE)
 
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "").strip()
+OPENROUTER_MODELS = [
+    os.getenv("OPENROUTER_MODEL", "liquid/lfm-2.5-2.6b:free").strip(),
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+    "liquid/lfm-3-1.7b:free",
+    "recursive/flint-v1.0:free",
+    "nvidia/nemotron-3.5-lightning:free",
+]
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434")
 CONFIGURED_MODEL = os.getenv("OLLAMA_MODEL", "jikepjikep_16HEX/gemma-4-e4b-nightshift-heretic-uncensored-q4:latest")
 
@@ -33,44 +45,40 @@ app.include_router(auth_router)
 app.include_router(conversations_router)
 
 
-# Cross-platform CORS
+# Cross-platform CORS for local, LAN, and public tunnel access
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:5174",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:4173",
-        "http://127.0.0.1:4173"
-    ],
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+if not FRONTEND_DIST.exists():
+    FRONTEND_DIST = Path(__file__).resolve().parent / "dist"
+
+if FRONTEND_DIST.exists() and (FRONTEND_DIST / "assets").exists():
+    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST / "assets")), name="assets")
+
 BASE_SYSTEM_PROMPT = (
-    "You are CareerPath AI, an expert, objective, and dedicated career guidance counselor for students in India.\n\n"
-    "MISSION & TONE:\n"
-    "- Your sole purpose is to mentor students on Indian higher education, career options, realistic salaries, entrance exams, and professional roadmaps.\n"
-    "- Deliver practical, realistic, grounded, and clear guidance.\n"
-    "- Always quote compensation in Indian Rupees (INR) using realistic figures (LPA or in-hand/month). Differentiate clearly between mass service firms, product startups, GCCs, and government pay scales.\n\n"
-    "STRICT OUTPUT CONSTRAINTS (MANDATORY):\n"
+    "You are CareerPath AI, an authoritative, dedicated, and expert career guidance counselor for higher education and career development in India.\n\n"
+    "MISSION & MANDATORY PURPOSE:\n"
+    "- Your sole, exclusive purpose is advising students on Indian higher education (BCA, B.Tech, MCA, MBA, BSc, B.Com, etc.), entrance examinations (JEE, GATE, CAT, NIMCET, CUET, NEET, etc.), realistic salary benchmarks in Indian Rupees (LPA / in-hand CTC), and verified career roadmaps.\n"
+    "- Deliver practical, realistic, grounded, and clear guidance for the Indian job market.\n\n"
+    "STRICT DOMAIN GUARDRAILS (ABSOLUTE REFUSAL RULE):\n"
+    "- You MUST remain strictly within Indian education, degrees, colleges, entrance exams, and professional career pathways.\n"
+    "- If the user asks ANY query unrelated to higher education, careers, exams, or professional development (for example: cooking recipes, general coding help without career context, creative writing, sports gossip, politics, jokes, personal chit-chat, or off-topic questions), you MUST REFUSE IMMEDIATELY.\n"
+    "- Do NOT answer the off-topic query even partially. Your refusal must be exactly this single, dignified sentence:\n"
+    "  \"I am CareerPath AI, an institutional career advisory system dedicated exclusively to higher education, entrance examinations, and career progression in India. I cannot assist with queries outside educational and career guidance, but I am ready to advise you on your academic and career goals.\"\n\n"
+    "STRICT OUTPUT CONSTRAINTS (NO CHATTER, NO EMOJIS):\n"
     "- Answer ONLY what the user asked. Conclude cleanly and STOP.\n"
-    "- NEVER add cheerleading, praise, flattery, or motivational commentary (DO NOT say 'You have a wonderful foundation', 'Keep asking these insightful questions', 'That shows true dedication', etc.).\n"
-    "- NEVER append unsolicited 'Immediate Next Step' or 'Next Steps' sections unless the user explicitly requested next steps or an action plan.\n"
-    "- NEVER add conversational closing pleasantries, prompts, or follow-up questions (DO NOT say 'What would you like to explore next?', 'Feel free to ask more', 'How can I help you next?', etc.). End immediately after the answer.\n"
-    "- NEVER use LaTeX arrow notation such as $\\rightarrow$ or \\rightarrow. Always write the standard arrow character '→' directly.\n\n"
-    "STRICT DOMAIN GUARDRAILS:\n"
-    "- You MUST remain strictly within the career guidance, education, degree, exam, and career progression narrative.\n"
-    "- If the user asks about anything unrelated to education, college, careers, exams, or professional growth (for example: cooking recipes, creative writing, sports gossip, general coding puzzles without career context, political commentary, or casual off-topic banter), politely refuse in one short sentence:\n"
-    "  \"I am CareerPath AI, dedicated specifically to helping students navigate careers, degrees, entrance exams, and professional pathways in India. I cannot assist with topics outside education and career guidance, but I am ready to help you explore your studies or career goals.\"\n\n"
-    "NO THINKING TAGS & CONCISE STRUCTURE:\n"
-    "- Deliver your answer directly. Do NOT output any internal <think>...</think> tags, chain-of-thought monologue, or reasoning steps. Start immediately with your response.\n"
-    "- When presenting comparisons or benchmarks, use clean markdown tables and bullet points. Ensure every section and table is completed fully."
+    "- STRICTLY NO EMOJIS anywhere in your output. Maintain a formal, collegiate, editorial tone.\n"
+    "- NEVER output thinking processes, chain-of-thought, or internal reasoning steps (DO NOT write 'Here is my thinking process:', 'Thinking Process:', or '<think>'). Begin your output immediately with the direct response.\n"
+    "- NEVER add cheerleading, flattery, or motivational filler (DO NOT say 'Great question!', 'You have a solid foundation', 'That shows true dedication', etc.).\n"
+    "- NEVER append unsolicited 'Next Steps' or conversational closing questions ('What would you like to explore next?', 'Feel free to ask more'). End immediately after the substantive guidance.\n"
+    "- Always quote compensation in Indian Rupees (INR) using realistic LPA figures. Differentiate clearly between entry-level service firms, product startups, GCCs, and senior roles.\n"
+    "- Format comparisons, timelines, and benchmarks using clean markdown tables and structured bullet points."
 )
 
 class MessageItem(BaseModel):
@@ -119,33 +127,33 @@ def build_student_profile_prompt(student: dict) -> str:
         "- Do not recite this profile back verbatim; weave this context naturally and authoritatively into your response."
     )
 
-def get_installed_models(client: ollama.Client) -> List[str]:
-    try:
-        available = client.list()
-        return [m.model for m in available.models if m.model]
-    except Exception:
-        return []
+def resolve_active_model() -> str:
+    """
+    Auto-detects the best available model.
+    If OPENROUTER_API_KEY is configured, uses OpenRouter cloud models.
+    Otherwise checks local Ollama.
+    """
+    if OPENROUTER_API_KEY:
+        return f"OpenRouter ({OPENROUTER_MODELS[0]})"
 
-def resolve_active_model(client: ollama.Client) -> str:
-    """
-    Auto-detects the best available model on the host machine.
-    Prefers Gemma, then Qwen, then Llama, then first installed.
-    If no models are installed in Ollama, returns empty string.
-    """
-    installed = get_installed_models(client)
+    try:
+        import ollama
+        client = ollama.Client(host=OLLAMA_HOST)
+        available = client.list()
+        installed = [m.model for m in available.models if m.model]
+    except Exception:
+        installed = []
+
     if not installed:
         return ""
 
-    # 1. Exact match with configured model
     if CONFIGURED_MODEL in installed:
         return CONFIGURED_MODEL
 
-    # 2. Case-insensitive or partial match
     for n in installed:
         if CONFIGURED_MODEL.lower() in n.lower() or n.lower() in CONFIGURED_MODEL.lower():
             return n
 
-    # 3. Prefer Gemma first, then Qwen, then Llama
     for n in installed:
         if "gemma" in n.lower():
             return n
@@ -160,22 +168,23 @@ def resolve_active_model(client: ollama.Client) -> str:
 
 @app.get("/")
 def home():
-    client = ollama.Client(host=OLLAMA_HOST)
-    active_model = resolve_active_model(client)
+    active_model = resolve_active_model()
+    # If static frontend exists, serve it
+    if FRONTEND_DIST.exists() and (FRONTEND_DIST / "index.html").exists():
+        return FileResponse(str(FRONTEND_DIST / "index.html"))
     return {
         "message": "CareerPath AI (India Edition) is running",
-        "model": active_model or "No model found (run: ollama pull gemma:2b)",
-        "host": OLLAMA_HOST
+        "model": active_model or "No model found",
+        "backend": "OpenRouter" if OPENROUTER_API_KEY else "Ollama"
     }
 
 @app.get("/health")
 def health_check():
-    client = ollama.Client(host=OLLAMA_HOST)
-    active_model = resolve_active_model(client)
+    active_model = resolve_active_model()
     return {
         "status": "healthy",
         "model": active_model or "No model found",
-        "host": OLLAMA_HOST,
+        "provider": "OpenRouter" if OPENROUTER_API_KEY else "Ollama",
         "edition": "India 2025-2026"
     }
 
@@ -238,8 +247,146 @@ def chat_endpoint(
             # Database log should not fail chat generation
             print(f"Warning: Failed to save user chat message: {e}")
 
-    client = ollama.Client(host=OLLAMA_HOST)
-    active_model = resolve_active_model(client)
+    active_model = resolve_active_model()
+
+    # 1. OPENROUTER CLOUD INFERENCE (Used when running on lightweight devices like Jio Puck)
+    if OPENROUTER_API_KEY:
+        def openrouter_generator() -> Generator[str, None, None]:
+            collected_chunks: List[str] = []
+            selected_model = OPENROUTER_MODELS[0]
+
+            for model_candidate in OPENROUTER_MODELS:
+                try:
+                    client_timeout = httpx.Timeout(12.0, connect=4.0)
+                    with httpx.Client(timeout=client_timeout) as http_client:
+                        with http_client.stream(
+                            "POST",
+                            "https://openrouter.ai/api/v1/chat/completions",
+                            headers={
+                                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                                "Content-Type": "application/json",
+                                "HTTP-Referer": "https://careerpath.internal",
+                                "X-Title": "CareerPath AI"
+                            },
+                            json={
+                                "model": model_candidate,
+                                "models": [model_candidate] + [m for m in OPENROUTER_MODELS if m != model_candidate][:2],
+                                "messages": conversation,
+                                "temperature": 0.2,
+                                "top_p": 0.85,
+                                "stream": True
+                            }
+                        ) as response:
+                            if response.status_code == 200:
+                                selected_model = model_candidate
+                                in_think = False
+                                for line in response.iter_lines():
+                                    if not line or not line.startswith("data: "):
+                                        continue
+                                    data_str = line[6:].strip()
+                                    if data_str == "[DONE]":
+                                        break
+                                    try:
+                                        payload = json.loads(data_str)
+                                        delta = payload.get("choices", [{}])[0].get("delta", {})
+                                        content = delta.get("content", "")
+                                        if not content:
+                                            continue
+
+                                        # Filter thinking tags and monologue
+                                        if "<think>" in content:
+                                            in_think = True
+                                            content = content.replace("<think>", "")
+                                        if "</think>" in content:
+                                            in_think = False
+                                            content = content.replace("</think>", "")
+                                            continue
+                                        if in_think:
+                                            continue
+
+                                        # Strip initial thinking chatter from models like nemotron
+                                        if not collected_chunks:
+                                            lower_content = content.lower()
+                                            if "thinking process" in lower_content or "analyze user input" in lower_content:
+                                                in_think = True
+                                                continue
+
+                                        # Strip emojis completely on the fly
+                                        content = re.sub(r'[\U00010000-\U0010ffff\u2600-\u26ff\u2700-\u27bf]', '', content)
+
+                                        if content:
+                                            content = (
+                                                content.replace("$\\rightarrow$", "→")
+                                                .replace("\\rightarrow", "→")
+                                                .replace("$\\leftarrow$", "←")
+                                                .replace("\\leftarrow", "←")
+                                            )
+                                            collected_chunks.append(content)
+                                            yield content
+                                    except Exception:
+                                        continue
+                                if collected_chunks:
+                                    break
+                            elif response.status_code == 429:
+                                err_msg = response.read().decode("utf-8", errors="ignore")
+                                if "free-models-per-day" in err_msg or "daily_requests" in err_msg:
+                                    print("OpenRouter daily free-tier limit exhausted across account.")
+                                    quota_notice = (
+                                        "CareerPath AI notice: OpenRouter daily free tier quota (50 requests/day) has been reached for this account. "
+                                        "Please replenish credits or provide a refreshed OPENROUTER_API_KEY in .env to resume immediate answers."
+                                    )
+                                    collected_chunks.append(quota_notice)
+                                    yield quota_notice
+                                    break
+                                else:
+                                    print(f"OpenRouter model {model_candidate} rate limited: {err_msg[:120]}")
+                                    continue
+                            else:
+                                err_msg = response.read().decode("utf-8", errors="ignore")[:250]
+                                print(f"OpenRouter model {model_candidate} returned HTTP {response.status_code}: {err_msg}")
+                                continue
+                except Exception as ex:
+                    print(f"OpenRouter attempt failed for {model_candidate}: {ex}")
+                    continue
+
+            if not collected_chunks:
+                fallback_msg = "CareerPath Advisory node is re-establishing model inference. Please repeat your query."
+                collected_chunks.append(fallback_msg)
+                yield fallback_msg
+
+            full_reply = "".join(collected_chunks).strip()
+            if active_conversation_id and full_reply:
+                try:
+                    save_chat_message(active_conversation_id, "assistant", clean_model_output(full_reply))
+                except Exception as db_err:
+                    print(f"Warning: Failed to save assistant message: {db_err}")
+
+        resp_headers = {"X-Model-Active": active_model}
+        if active_conversation_id:
+            resp_headers["X-Conversation-Id"] = str(active_conversation_id)
+
+        if request.stream:
+            return StreamingResponse(
+                openrouter_generator(),
+                media_type="text/plain; charset=utf-8",
+                headers=resp_headers
+            )
+        else:
+            gen = openrouter_generator()
+            full_text = "".join(list(gen))
+            return ChatResponse(
+                reply=clean_model_output(full_text),
+                model=active_model,
+                has_rag=bool(rag_context),
+                conversation_id=active_conversation_id
+            )
+
+    # 2. LOCAL OLLAMA INFERENCE (Fallback for offline local environments)
+    try:
+        import ollama
+        client = ollama.Client(host=OLLAMA_HOST)
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Ollama library not available: {e}")
 
     # If no model is installed in Ollama, guide the user directly
     if not active_model:
@@ -267,7 +414,7 @@ def chat_endpoint(
             )
         return ChatResponse(reply=guidance, model="None", has_rag=False, conversation_id=active_conversation_id)
 
-    # 1. STREAMING MODE (Default for fluid ChatGPT/Claude UI gliding effect)
+    # STREAMING MODE with Ollama
     if request.stream:
         def token_generator() -> Generator[str, None, None]:
             collected_chunks: List[str] = []
@@ -298,7 +445,6 @@ def chat_endpoint(
                     if in_think:
                         continue
                     if content:
-                        # Clean LaTeX arrow artifacts if emitted by the LLM
                         content = (
                             content.replace("$\\rightarrow$", "→")
                             .replace("\\rightarrow", "→")
@@ -308,7 +454,6 @@ def chat_endpoint(
                         collected_chunks.append(content)
                         yield content
 
-                # Task 7: Persist full AI response when streaming completes
                 full_reply = "".join(collected_chunks).strip()
                 if active_conversation_id and full_reply:
                     try:
@@ -343,7 +488,7 @@ def chat_endpoint(
             headers=resp_headers
         )
 
-    # 2. NON-STREAMING MODE (Direct JSON response)
+    # NON-STREAMING MODE with Ollama
     try:
         response = client.chat(
             model=active_model,
@@ -358,7 +503,6 @@ def chat_endpoint(
         raw_reply = response.message.content
         cleaned_reply = clean_model_output(raw_reply)
 
-        # Task 7: Save AI response
         if active_conversation_id and cleaned_reply:
             try:
                 save_chat_message(active_conversation_id, "assistant", cleaned_reply)
@@ -373,3 +517,19 @@ def chat_endpoint(
         )
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"AI model connection failed: {str(e)}")
+
+
+# SPA Fallback router: Serves React HTML5 History Mode URLs cleanly
+@app.get("/{full_path:path}")
+async def serve_spa_fallback(full_path: str):
+    if FRONTEND_DIST.exists():
+        # Do not catch API paths
+        if full_path.startswith(("auth", "conversations", "chat", "health", "docs", "openapi.json")):
+            raise HTTPException(status_code=404, detail="Not Found")
+        candidate = FRONTEND_DIST / full_path
+        if candidate.is_file():
+            return FileResponse(str(candidate))
+        index_file = FRONTEND_DIST / "index.html"
+        if index_file.is_file():
+            return FileResponse(str(index_file))
+    raise HTTPException(status_code=404, detail="Frontend build not found")

@@ -18,6 +18,7 @@ type Student = {
   id: number;
   name: string;
   email: string;
+  role?: string | null;
   course?: string | null;
   institution?: string | null;
   graduation_year?: number | null;
