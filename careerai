@@ -1,0 +1,277 @@
+#!/usr/bin/env python3
+"""
+CareerPath AI — Model Fallback & Discovery Terminal CLI
+Dynamically discovers local Ollama GPU instances, auto-binds active models,
+and seamlessly fails over to OpenRouter Cloud API when local hardware is unavailable.
+"""
+
+import sys
+import os
+import json
+import urllib.request
+import urllib.error
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).resolve().parent
+BACKEND_DIR = ROOT_DIR / "backend"
+ENV_PATH = BACKEND_DIR / ".env"
+
+def load_env() -> dict:
+    env = {}
+    if ENV_PATH.exists():
+        with open(ENV_PATH, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    env[k.strip()] = v.strip().strip('"').strip("'")
+    return env
+
+def save_env_var(key: str, value: str):
+    env = load_env()
+    env[key] = value
+    lines = []
+    if ENV_PATH.exists():
+        written_keys = set()
+        with open(ENV_PATH, "r", encoding="utf-8") as f:
+            for line in f:
+                stripped = line.strip()
+                if stripped and not stripped.startswith("#") and "=" in stripped:
+                    k = stripped.split("=", 1)[0].strip()
+                    if k in env:
+                        lines.append(f"{k}={env[k]}\n")
+                        written_keys.add(k)
+                        continue
+                lines.append(line)
+        for k, v in env.items():
+            if k not in written_keys:
+                lines.append(f"{k}={v}\n")
+    else:
+        for k, v in env.items():
+            lines.append(f"{k}={v}\n")
+    with open(ENV_PATH, "w", encoding="utf-8") as f:
+        f.writelines(lines)
+
+def probe_ollama(host: str) -> tuple[bool, list[str]]:
+    """Probes local Ollama instance for installed models using standard urllib."""
+    url = f"{host.rstrip('/')}/api/tags"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "CareerAI-CLI/1.0"})
+        with urllib.request.urlopen(req, timeout=2.0) as resp:
+            if resp.status == 200:
+                data = json.loads(resp.read().decode("utf-8"))
+                models = [m.get("name", "") for m in data.get("models", [])]
+                return True, models
+    except Exception:
+        pass
+    return False, []
+
+def test_openrouter(key: str) -> tuple[bool, str]:
+    """Validates OpenRouter API key with lightweight models endpoint."""
+    if not key:
+        return False, "No key provided"
+    url = "https://openrouter.ai/api/v1/auth/key"
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={
+                "Authorization": f"Bearer {key}",
+                "User-Agent": "CareerAI-CLI/1.0"
+            }
+        )
+        with urllib.request.urlopen(req, timeout=3.0) as resp:
+            if resp.status == 200:
+                data = json.loads(resp.read().decode("utf-8"))
+                label = data.get("data", {}).get("label") or "Active"
+                return True, label
+    except urllib.error.HTTPError as e:
+        return False, f"HTTP {e.code}"
+    except Exception as e:
+        return False, str(e)
+    return False, "Failed"
+
+def print_banner():
+    print("""
+╔═══════════════════════════════════════════════════════════════════╗
+║                  CAREERPATH AI — ROUTING CLI                     ║
+║         Local GPU Ollama  ◄──►  OpenRouter Cloud Fallback        ║
+╚═══════════════════════════════════════════════════════════════════╝""")
+
+def print_status():
+    print_banner()
+    env = load_env()
+    ollama_host = os.environ.get("OLLAMA_HOST") or env.get("OLLAMA_HOST", "http://127.0.0.1:11434")
+    configured_model = os.environ.get("OLLAMA_MODEL") or env.get("OLLAMA_MODEL", "lfm2.5:8b-a1b-q4_K_M")
+    openrouter_key = os.environ.get("OPENROUTER_API_KEY") or env.get("OPENROUTER_API_KEY", "")
+
+    print(f"\n[1] LOCAL OLLAMA INSTANCE:")
+    print(f"    • Target Host: {ollama_host}")
+    is_ollama_up, models = probe_ollama(ollama_host)
+    if is_ollama_up:
+        print(f"    • Status:      ONLINE (Found {len(models)} active model{'s' if len(models) != 1 else ''})")
+        for m in models:
+            active_marker = " ◄ [ACTIVE]" if m == configured_model or configured_model in m else ""
+            print(f"      - {m}{active_marker}")
+    else:
+        print(f"    • Status:      OFFLINE (No Ollama daemon detected at {ollama_host})")
+
+    print(f"\n[2] OPENROUTER CLOUD FALLBACK:")
+    if openrouter_key:
+        masked_key = openrouter_key[:8] + "..." + openrouter_key[-4:] if len(openrouter_key) > 12 else "********"
+        print(f"    • API Key:     {masked_key}")
+        is_or_valid, info = test_openrouter(openrouter_key)
+        status_text = f"VALID ({info})" if is_or_valid else f"CHECK FAILED ({info})"
+        print(f"    • Status:      {status_text}")
+    else:
+        print(f"    • API Key:     NOT CONFIGURED")
+        print(f"    • Status:      STANDBY")
+
+    print(f"\n[3] RESOLVED ROUTING DESTINATION:")
+    if is_ollama_up and models:
+        chosen = configured_model if configured_model in models else models[0]
+        print(f"    ➜ careerai ──► Ollama (Local GPU: {chosen})")
+    elif openrouter_key:
+        print(f"    ➜ careerai ──► OpenRouter Cloud API (liquid/lfm-2.5-2.6b:free)")
+    else:
+        print(f"    ➜ careerai ──► NO PROVIDER ACTIVE (Run 'careerai --setup')")
+    print()
+
+def ask_prompt(user_query: str):
+    env = load_env()
+    ollama_host = os.environ.get("OLLAMA_HOST") or env.get("OLLAMA_HOST", "http://127.0.0.1:11434")
+    configured_model = os.environ.get("OLLAMA_MODEL") or env.get("OLLAMA_MODEL", "lfm2.5:8b-a1b-q4_K_M")
+    openrouter_key = os.environ.get("OPENROUTER_API_KEY") or env.get("OPENROUTER_API_KEY", "")
+
+    is_ollama_up, models = probe_ollama(ollama_host)
+    if is_ollama_up and models:
+        model = configured_model if configured_model in models else models[0]
+        print(f"\n[careerai ──► Ollama ({model})]")
+        url = f"{ollama_host.rstrip('/')}/api/chat"
+        payload = json.dumps({
+            "model": model,
+            "messages": [
+                {"role": "system", "content": "You are CareerPath AI. Provide high-impact, verified career guidance for India. No emojis. Strictly avoid internal reasoning monologue."},
+                {"role": "user", "content": user_query}
+            ],
+            "stream": True
+        }).encode("utf-8")
+        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=45.0) as resp:
+                in_think = False
+                for line in resp:
+                    line = line.decode("utf-8").strip()
+                    if not line:
+                        continue
+                    try:
+                        chunk = json.loads(line)
+                        c = chunk.get("message", {}).get("content", "")
+                        if "<think>" in c:
+                            in_think = True
+                            c = c.replace("<think>", "")
+                        if "</think>" in c:
+                            in_think = False
+                            c = c.replace("</think>", "")
+                            continue
+                        if in_think or not c:
+                            continue
+                        sys.stdout.write(c)
+                        sys.stdout.flush()
+                    except Exception:
+                        pass
+                print("\n")
+                return
+        except Exception as e:
+            print(f"[Ollama error: {e}] Failing over to OpenRouter...")
+
+    if openrouter_key:
+        print(f"\n[careerai ──► OpenRouter Cloud API]")
+        url = "https://openrouter.ai/api/v1/chat/completions"
+        payload = json.dumps({
+            "model": "liquid/lfm-2.5-2.6b:free",
+            "messages": [
+                {"role": "system", "content": "You are CareerPath AI. Provide high-impact, verified career guidance for India. No emojis."},
+                {"role": "user", "content": user_query}
+            ],
+            "stream": True
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            url,
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {openrouter_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://careerpath.internal"
+            }
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30.0) as resp:
+                for line in resp:
+                    line = line.decode("utf-8").strip()
+                    if line.startswith("data: ") and line != "data: [DONE]":
+                        try:
+                            chunk = json.loads(line[6:])
+                            c = chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                            if c:
+                                sys.stdout.write(c)
+                                sys.stdout.flush()
+                        except Exception:
+                            pass
+                print("\n")
+                return
+        except Exception as e:
+            print(f"[OpenRouter error: {e}]")
+            return
+
+    print("Error: No active AI inference engine reachable. Start Ollama ('ollama serve') or supply an OpenRouter API key.")
+
+def main():
+    args = sys.argv[1:]
+    if not args or args[0] in ("-h", "--help", "help"):
+        print_banner()
+        print("""
+Usage:
+  careerai                      Display active model discovery & routing
+  careerai status               Check status of local Ollama & OpenRouter key
+  careerai set-key <API_KEY>    Configure OpenRouter API Key in backend/.env
+  careerai set-host <HOST_URL>  Configure custom Ollama host (e.g. http://127.0.0.1:11434)
+  careerai set-model <MODEL>    Set default preferred model name
+  careerai ask "<QUESTION>"     Run instant terminal advisory query with dynamic failover
+  careerai start                Launch CareerPath AI fullstack application
+""")
+        return
+
+    cmd = args[0]
+    if cmd in ("status", "--status"):
+        print_status()
+    elif cmd in ("set-key", "--set-key", "key") and len(args) > 1:
+        key = args[1].strip()
+        save_env_var("OPENROUTER_API_KEY", key)
+        print(f"Updated OPENROUTER_API_KEY in backend/.env.")
+        print_status()
+    elif cmd in ("set-host", "--set-host", "host") and len(args) > 1:
+        host = args[1].strip()
+        save_env_var("OLLAMA_HOST", host)
+        print(f"Updated OLLAMA_HOST in backend/.env to: {host}")
+        print_status()
+    elif cmd in ("set-model", "--set-model", "model") and len(args) > 1:
+        model = args[1].strip()
+        save_env_var("OLLAMA_MODEL", model)
+        print(f"Updated OLLAMA_MODEL in backend/.env to: {model}")
+        print_status()
+    elif cmd in ("ask", "--ask", "chat") and len(args) > 1:
+        query = " ".join(args[1:])
+        ask_prompt(query)
+    elif cmd in ("start", "--start", "run"):
+        script = ROOT_DIR / "start.sh"
+        if script.exists():
+            os.execv("/bin/bash", ["bash", str(script)])
+        else:
+            print(f"Start script not found at {script}")
+    else:
+        # Default to asking if a query was passed directly
+        query = " ".join(args)
+        ask_prompt(query)
+
+if __name__ == "__main__":
+    main()

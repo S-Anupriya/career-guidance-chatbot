@@ -51,26 +51,41 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
   const hasSpecial = /[!@#$%^&*()_+\-=[\]{}|;:,.<>?]/.test(password);
   const isPasswordValid = hasMinLength && hasUppercase && hasLowercase && hasNumber && hasSpecial;
 
-  // Disposable email check
-  const emailDomain = email.includes("@") ? email.split("@")[1].toLowerCase() : "";
+  // Strict email validation
+  const hasEmailSpace = email.includes(" ");
+  const trimmedEmail = email.trim();
+  const isEmailFormatValid = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/.test(trimmedEmail);
+  const emailDomain = trimmedEmail.includes("@") ? trimmedEmail.split("@")[1].toLowerCase() : "";
   const isDisposableEmail = DISPOSABLE_EMAIL_DOMAINS.includes(emailDomain);
+  const isEmailFullyValid = !hasEmailSpace && isEmailFormatValid && !isDisposableEmail;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     setSuccess("");
 
+    if (hasEmailSpace) {
+      setError("Email address cannot contain spaces.");
+      return;
+    }
+
+    if (!isEmailFormatValid) {
+      setError("Please enter a valid institutional or personal email address (e.g. name@gmail.com, student@college.ac.in, name@proton.me, name@gov.in).");
+      return;
+    }
+
+    if (isDisposableEmail) {
+      setError("Temporary or disposable email domains are strictly prohibited.");
+      return;
+    }
+
     if (mode === "register") {
-      if (isDisposableEmail) {
-        setError("Temporary or disposable email domains are not permitted.");
-        return;
-      }
       if (!isPasswordValid) {
         setError("Please fulfill all password security requirements before proceeding.");
         return;
       }
       if (password !== confirmPassword) {
-        setError("Passwords do not match. Please verify.");
+        setError("Passwords do not match. Please verify your repeated password.");
         return;
       }
     }
@@ -82,8 +97,8 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
 
       const body =
         mode === "register"
-          ? { name: name.trim(), email: email.trim(), password }
-          : { email: email.trim(), password };
+          ? { name: name.trim(), email: trimmedEmail, password, confirm_password: confirmPassword }
+          : { email: trimmedEmail, password };
 
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: "POST",
@@ -199,8 +214,8 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
           <label className="auth-field">
             <span className="field-label">Institutional or Personal Email</span>
             <input
-              type="email"
-              placeholder="e.g. student@eastpoint.ac.in"
+              type="text"
+              placeholder="e.g. abcd@gmail.com, student@eastpoint.ac.in, name@gov.in"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               maxLength={254}
@@ -208,9 +223,24 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
               required
               className="auth-input"
             />
-            {isDisposableEmail && (
+            {hasEmailSpace && (
               <span className="field-hint-error">
-                Temporary or disposable email domains are not permitted.
+                Email address cannot contain spaces.
+              </span>
+            )}
+            {!hasEmailSpace && isDisposableEmail && (
+              <span className="field-hint-error">
+                Temporary or disposable email domains are strictly prohibited.
+              </span>
+            )}
+            {!hasEmailSpace && email.length > 3 && !isEmailFormatValid && !isDisposableEmail && (
+              <span className="field-hint-error">
+                Please enter a valid email address (e.g. name@gmail.com, student@college.ac.in, name@proton.me, name@gov.in).
+              </span>
+            )}
+            {!hasEmailSpace && isEmailFormatValid && !isDisposableEmail && (
+              <span className="field-hint-success">
+                ✓ Valid domain structure recognized
               </span>
             )}
           </label>
@@ -291,6 +321,11 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
                   {showConfirmPassword ? "Hide" : "Show"}
                 </button>
               </div>
+              {confirmPassword.length > 0 && (
+                <span className={password === confirmPassword ? "field-hint-success" : "field-hint-error"}>
+                  {password === confirmPassword ? "✓ Passwords match" : "✕ Passwords do not match"}
+                </span>
+              )}
             </label>
           )}
 
@@ -300,7 +335,12 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
           <button
             type="submit"
             className="auth-submit-btn"
-            disabled={loading || (mode === "register" && (!isPasswordValid || isDisposableEmail))}
+            disabled={
+              loading ||
+              (mode === "register" &&
+                (!isPasswordValid || isDisposableEmail || !isEmailFullyValid || password !== confirmPassword)) ||
+              (mode === "login" && (!trimmedEmail || !password || hasEmailSpace))
+            }
           >
             {loading ? "Verifying..." : mode === "login" ? "Sign In to Dossier →" : "Register Candidate Account →"}
           </button>

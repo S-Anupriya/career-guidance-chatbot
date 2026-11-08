@@ -9,7 +9,7 @@
 }
 
 :root, [data-theme="light"] {
-  --font-serif: 'Fraunces', 'Iowan Old Style', 'Palatino Linotype', 'Baskerville', Georgia, serif;
+  --font-serif: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', Menlo, Monaco, Consolas, monospace;
 
@@ -62,7 +62,7 @@
 }
 
 [data-theme="dark"] {
-  --font-serif: 'Fraunces', 'Iowan Old Style', 'Palatino Linotype', 'Baskerville', Georgia, serif;
+  --font-serif: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', Menlo, Monaco, Consolas, monospace;
 
@@ -1286,6 +1286,13 @@ button, input, textarea {
   font-size: 11px;
   color: #dc2626;
   margin-top: 2px;
+}
+
+.field-hint-success {
+  font-size: 11px;
+  color: #16a34a;
+  margin-top: 2px;
+  font-weight: 500;
 }
 
 .auth-message {

@@ -3,6 +3,7 @@ import re
 import json
 import sqlite3
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -30,6 +31,7 @@ class RegisterRequest(BaseModel):
     name: str = Field(min_length=2, max_length=80)
     email: str = Field(min_length=5, max_length=254)
     password: str = Field(min_length=8, max_length=128)
+    confirm_password: Optional[str] = Field(default=None, max_length=128)
 
 
 class LoginRequest(BaseModel):
@@ -58,24 +60,37 @@ DISPOSABLE_EMAIL_DOMAINS = {
     "dispostable.com",
     "sharklasers.com",
     "getairmail.com",
+    "temp-mail.org",
+    "mohmal.com",
+    "burnermail.io",
 }
 
 
 def validate_email(email: str) -> tuple[bool, str]:
+    if not email:
+        return False, "Email address is required."
+
+    if " " in email:
+        return False, "Email address cannot contain spaces."
+
     if not re.fullmatch(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", email):
-        return False, "Please enter a valid email address (e.g. student@college.edu or name@gmail.com)."
+        return False, "Invalid email format. Must follow standard format (e.g. name@gmail.com, student@college.ac.in, name@gov.in)."
 
     parts = email.split("@")
-    if len(parts) != 2:
-        return False, "Malformed email address."
+    if len(parts) != 2 or not parts[0] or not parts[1]:
+        return False, "Malformed email address structure."
 
-    domain = parts[1].lower()
+    username, domain = parts[0], parts[1].lower()
+
+    if ".." in domain or domain.startswith("-") or domain.endswith("-"):
+        return False, "Invalid email domain structure."
+
     if domain in DISPOSABLE_EMAIL_DOMAINS:
-        return False, "Temporary or disposable email domains are not allowed."
+        return False, "Temporary or disposable email domains are strictly prohibited."
 
     tld = domain.split(".")[-1]
-    if len(tld) < 2:
-        return False, "Invalid email domain extension."
+    if len(tld) < 2 or not tld.isalpha():
+        return False, "Invalid top-level domain extension."
 
     return True, ""
 
@@ -110,6 +125,12 @@ def register_student(request: RegisterRequest):
     is_valid_email, email_err = validate_email(email)
     if not is_valid_email:
         raise HTTPException(status_code=400, detail=email_err)
+
+    if request.confirm_password is not None and request.password != request.confirm_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Passwords do not match. Please verify your repeated password."
+        )
 
     is_strong_pw, pw_err = validate_password_strength(request.password)
     if not is_strong_pw:

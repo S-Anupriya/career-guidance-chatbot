@@ -133,6 +133,38 @@ The platform operates as a modular, decoupled local architecture:
 
 ---
 
+## Dynamic AI Model Routing & Fallback Mechanism (Terminal CLI)
+
+CareerPath AI features a dynamic routing engine that inspects available local hardware before falling back to cloud inference. In the root directory, the native `careerai` CLI automatically locates active Ollama instances on your machine/LAN and falls back to OpenRouter when offline:
+
+```text
+careerai ──► Ollama (Local GPU: dynamically detects active models: lfm2.5, qwen2.5, gemma)
+      │
+      ▼ (if Ollama is offline or machine lacks GPU)
+careerai ──► OpenRouter Cloud API (sk-or-v1-***)
+```
+
+### Terminal CLI Commands
+
+```bash
+# 1. Inspect live inference route & available models
+./careerai status
+
+# 2. Configure OpenRouter fallback key directly from terminal
+./careerai set-key "sk-or-v1-your-key-here"
+
+# 3. Direct Ollama host to a remote or local IP (defaults to 127.0.0.1:11434)
+./careerai set-host "http://127.0.0.1:11434"
+
+# 4. Instant terminal advisory query (streams response token-by-token)
+./careerai ask "Help me explore career options for a BCA student in India"
+
+# 5. Boot the fullstack platform with resolved inference engine
+./careerai start
+```
+
+---
+
 ## Quick Start
 
 ### macOS & Linux Setup
@@ -207,6 +239,7 @@ career-guidance-chatbot/
 │   │   └── StudentProfile.tsx   # Academic profile editor
 │   ├── index.html           # Google Fonts preconnect (Fraunces, Plus Jakarta, JetBrains Mono)
 │   └── package.json         # React 19, TypeScript 5, Vite 8
+├── careerai                 # Terminal dynamic AI model routing & fallback CLI
 ├── start.sh                 # macOS & Linux single-command launcher
 ├── start.bat                # Windows single-command automated launcher
 └── README.md                # System documentation & interface showcase
