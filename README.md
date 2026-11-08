@@ -135,9 +135,12 @@ The platform operates as a modular, decoupled local architecture:
 
 ## Dynamic AI Model Routing & Fallback Mechanism (Terminal CLI)
 
-CareerPath AI features a dynamic routing engine that inspects available local hardware before falling back to cloud inference. In the root directory, the native `careerai` CLI automatically locates active Ollama instances on your machine/LAN and falls back to OpenRouter when offline:
+CareerPath AI features a dynamic routing engine that inspects available local hardware and cloud providers before falling back. In the root directory, the native `careerai` CLI automatically discovers Google Gemini 2.5 Flash, active local GPU Ollama instances, and OpenRouter cloud fallback:
 
 ```text
+careerai ──► Google Gemini 2.5 Flash (Instant, Zero Thinking Budget, 24/7 Cloud)
+      │
+      ▼ (if Gemini key omitted)
 careerai ──► Ollama (Local GPU: dynamically detects active models: lfm2.5, qwen2.5, gemma)
       │
       ▼ (if Ollama is offline or machine lacks GPU)
@@ -150,16 +153,19 @@ careerai ──► OpenRouter Cloud API (sk-or-v1-***)
 # 1. Inspect live inference route & available models
 ./careerai status
 
-# 2. Configure OpenRouter fallback key directly from terminal
+# 2. Configure Google Gemini API key directly from terminal
+./careerai set-gemini "your-gemini-api-key"
+
+# 3. Configure OpenRouter fallback key
 ./careerai set-key "sk-or-v1-your-key-here"
 
-# 3. Direct Ollama host to a remote or local IP (defaults to 127.0.0.1:11434)
+# 4. Direct Ollama host to a remote or local IP (defaults to 127.0.0.1:11434)
 ./careerai set-host "http://127.0.0.1:11434"
 
-# 4. Instant terminal advisory query (streams response token-by-token)
+# 5. Instant terminal advisory query (streams response token-by-token)
 ./careerai ask "Help me explore career options for a BCA student in India"
 
-# 5. Boot the fullstack platform with resolved inference engine
+# 6. Boot the fullstack platform with resolved inference engine
 ./careerai start
 ```
 

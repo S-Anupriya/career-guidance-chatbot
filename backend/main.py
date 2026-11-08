@@ -19,6 +19,8 @@ from database import init_db
 ENV_FILE = Path(__file__).resolve().parent / ".env"
 load_dotenv(dotenv_path=ENV_FILE)
 
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "").strip()
 OPENROUTER_MODELS = [
     os.getenv("OPENROUTER_MODEL", "liquid/lfm-2.5-2.6b:free").strip(),
@@ -155,9 +157,13 @@ def check_ollama_available() -> tuple[bool, str]:
 def resolve_active_model() -> tuple[str, str]:
     """
     Returns (provider, model_name).
-    Prioritizes local Ollama node (e.g. 127.0.0.1:11434) for fast GPU inference.
-    Falls back to OpenRouter if Ollama is unreachable.
+    1. Direct Google Gemini 2.5 Flash API (zero-thinking, high-speed, autonomous 24/7 cloud).
+    2. Local GPU Ollama node (e.g. 127.0.0.1:11434).
+    3. OpenRouter Cloud API fallback.
     """
+    if GEMINI_API_KEY:
+        return "gemini", GEMINI_MODEL
+
     has_ollama, ollama_model = check_ollama_available()
     if has_ollama:
         return "ollama", ollama_model
@@ -252,7 +258,111 @@ def chat_endpoint(
 
     provider, active_model_name = resolve_active_model()
 
-    # 1. LOCAL OLLAMA INFERENCE (Prioritized for high-speed GPU inference over local network)
+    # 1. DIRECT GOOGLE GEMINI INFERENCE (Zero-thinking budget, instant response, 24/7 cloud availability)
+    if provider == "gemini":
+        def gemini_generator() -> Generator[str, None, None]:
+            collected_chunks: List[str] = []
+            gemini_contents = []
+            if request.messages:
+                recent_messages = request.messages[-4:]
+                for msg in recent_messages:
+                    if msg.content:
+                        role = "user" if msg.role == "user" else "model"
+                        gemini_contents.append({
+                            "role": role,
+                            "parts": [{"text": msg.content}]
+                        })
+            else:
+                gemini_contents.append({
+                    "role": "user",
+                    "parts": [{"text": user_query}]
+                })
+
+            gemini_payload = {
+                "systemInstruction": {
+                    "parts": [{"text": system_content}]
+                },
+                "contents": gemini_contents,
+                "generationConfig": {
+                    "temperature": 0.2,
+                    "topP": 0.85,
+                    "thinkingConfig": {
+                        "thinkingBudget": 0
+                    }
+                }
+            }
+
+            try:
+                with httpx.Client(timeout=30.0) as client:
+                    with client.stream(
+                        "POST",
+                        f"https://generativelanguage.googleapis.com/v1beta/models/{active_model_name}:streamGenerateContent?alt=sse&key={GEMINI_API_KEY}",
+                        json=gemini_payload
+                    ) as response:
+                        if response.status_code == 200:
+                            for line in response.iter_lines():
+                                if not line or not line.startswith("data: "):
+                                    continue
+                                data_str = line[6:].strip()
+                                try:
+                                    payload = json.loads(data_str)
+                                    candidates = payload.get("candidates", [])
+                                    if not candidates:
+                                        continue
+                                    parts = candidates[0].get("content", {}).get("parts", [])
+                                    for part in parts:
+                                        content = part.get("text", "")
+                                        if not content:
+                                            continue
+                                        content = re.sub(r'[\U00010000-\U0010ffff\u2600-\u26ff\u2700-\u27bf]', '', content)
+                                        if content:
+                                            content = (
+                                                content.replace("$\\rightarrow$", "→")
+                                                .replace("\\rightarrow", "→")
+                                                .replace("$\\leftarrow$", "←")
+                                                .replace("\\leftarrow", "←")
+                                            )
+                                            collected_chunks.append(content)
+                                            yield content
+                                except Exception:
+                                    continue
+                        else:
+                            fallback = f"Gemini API returned HTTP {response.status_code}."
+                            collected_chunks.append(fallback)
+                            yield fallback
+            except Exception as e:
+                fallback = f"Could not connect to Gemini API: {e}"
+                collected_chunks.append(fallback)
+                yield fallback
+
+            full_reply = "".join(collected_chunks).strip()
+            if active_conversation_id and full_reply:
+                try:
+                    save_chat_message(active_conversation_id, "assistant", clean_model_output(full_reply))
+                except Exception as db_err:
+                    print(f"Warning: Failed to save assistant message: {db_err}")
+
+        resp_headers = {"X-Model-Active": active_model_name}
+        if active_conversation_id:
+            resp_headers["X-Conversation-Id"] = str(active_conversation_id)
+
+        if request.stream:
+            return StreamingResponse(
+                gemini_generator(),
+                media_type="text/plain; charset=utf-8",
+                headers=resp_headers
+            )
+        else:
+            gen = gemini_generator()
+            full_text = "".join(list(gen))
+            return ChatResponse(
+                reply=clean_model_output(full_text),
+                model=active_model_name,
+                has_rag=bool(rag_context),
+                conversation_id=active_conversation_id
+            )
+
+    # 2. LOCAL OLLAMA INFERENCE (Prioritized for high-speed GPU inference over local network)
     if provider == "ollama":
         def ollama_generator() -> Generator[str, None, None]:
             collected_chunks: List[str] = []
