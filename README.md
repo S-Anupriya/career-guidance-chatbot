@@ -83,6 +83,20 @@
 <br />
 <img src="assets/chat_light.png" alt="CareerPath AI Light Chat" width="880" />
 
+<br /><br />
+
+### Candidate Dossier Amendment & Profile (Nocturne Dark)
+*Academic credentials, university affiliation, and skill inventory customization stored locally.*
+<br />
+<img src="assets/profile_dark.png" alt="CareerPath AI Academic Profile (Dark)" width="880" />
+
+<br /><br />
+
+### Candidate Dossier Amendment & Profile (Editorial Light Paper)
+*Daylight editorial theme for managing target trajectories, entrance exam ambitions, and technical portfolios.*
+<br />
+<img src="assets/profile_light.png" alt="CareerPath AI Academic Profile (Light)" width="880" />
+
 </div>
 
 ---
@@ -225,7 +239,9 @@ career-guidance-chatbot/
 │   ├── login.png            # Candidate Registry & Authentication
 │   ├── ai_thinking.png      # Real-Time Reasoning Telemetry
 │   ├── chat_dark.png        # Nocturne Advisory Consultation
-│   └── chat_light.png       # Editorial Light Advisory Consultation
+│   ├── chat_light.png       # Editorial Light Advisory Consultation
+│   ├── profile_dark.png     # Candidate Dossier Amendment (Nocturne)
+│   └── profile_light.png    # Candidate Dossier Amendment (Editorial Light)
 ├── backend/
 │   ├── auth.py              # Argon2id password hashing, validation & JWT
 │   ├── conversations.py     # Conversation threads CRUD endpoints
